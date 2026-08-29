@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.stylo.batterymonitor"
-    compileSdk = 37
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.stylo.batterymonitor"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
     }
