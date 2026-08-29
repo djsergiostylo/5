@@ -5,6 +5,7 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,22 +26,26 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android API 37
-        run: sdkmanager "platforms;android-37"
+      - name: Install Android API 35
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Set up Gradle 9.3.1
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "9.3.1"
 
       - name: Run unit tests
-        run: gradle testDebugUnitTest
+        run: gradle --no-daemon testDebugUnitTest
 
       - name: Assemble debug APK
-        run: gradle assembleDebug
+        run: gradle --no-daemon assembleDebug
+
+      - name: Verify APK exists
+        run: test -s app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: stylo-battery-monitor-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
