@@ -43,9 +43,24 @@ jobs:
       - name: Verify APK exists
         run: test -s app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Rename APK for download
+        run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/stylo-battery-monitor-debug.apk
+
       - name: Upload debug APK
+        id: apk
         uses: actions/upload-artifact@v4
         with:
-          name: stylo-battery-monitor-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: STYLO Battery Monitor - APK
+          path: app/build/outputs/apk/debug/stylo-battery-monitor-debug.apk
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Add APK download link to summary
+        run: |
+          echo "## 📱 STYLO Battery Monitor" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### APK generada correctamente" >> "$GITHUB_STEP_SUMMARY"
+          echo "[⬇️ Descargar APK]( ${{ steps.apk.outputs.artifact-url }} )" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: \\`${GITHUB_SHA::12}\\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Build: #${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
