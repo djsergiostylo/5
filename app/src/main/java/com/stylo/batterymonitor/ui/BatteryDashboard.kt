@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -35,14 +34,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.filament.LightManager
 import com.stylo.batterymonitor.data.BatterySnapshot
-import io.github.sceneview.SceneView
-import io.github.sceneview.math.Color as SceneColor
-import io.github.sceneview.node.CylinderNode
-import io.github.sceneview.node.LightNode
-import io.github.sceneview.node.Position
-import io.github.sceneview.node.Rotation
-import io.github.sceneview.node.Scale
-import io.github.sceneview.node.TorusNode
+import io.github.sceneview.Scene
+import io.github.sceneview.math.Position
+import io.github.sceneview.math.Rotation
+import io.github.sceneview.math.Scale
+import io.github.sceneview.rememberCameraNode
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberEnvironment
 import io.github.sceneview.rememberEnvironmentLoader
@@ -76,8 +72,11 @@ private fun BatteryNativeScene(snapshot: BatterySnapshot, tilt: DeviceTilt, modi
     val engine = rememberEngine()
     val materialLoader = rememberMaterialLoader(engine)
     val environmentLoader = rememberEnvironmentLoader(engine)
-    val environment = rememberEnvironment(environmentLoader)
-    val mainLight = rememberMainLightNode(engine) { intensity = 90_000f }
+    val environment = rememberEnvironment(environmentLoader, isOpaque = false)
+    val mainLight = rememberMainLightNode(engine)
+    val camera = rememberCameraNode(engine) {
+        position = Position(z = 5.2f, y = 0.1f)
+    }
 
     val accent = when {
         snapshot.temperatureC != null && snapshot.temperatureC >= 45.0 -> Color(0xFFFF6262)
@@ -85,57 +84,56 @@ private fun BatteryNativeScene(snapshot: BatterySnapshot, tilt: DeviceTilt, modi
         else -> Color(0xFF3DFF7A)
     }
     val bodyMaterial = remember(materialLoader) {
-        materialLoader.createColorInstance(SceneColor(0.12f, 0.16f, 0.20f, 1f), metallic = 0.75f, roughness = 0.25f)
+        materialLoader.createColorInstance(Color(0xFF24303A), metallic = 0.75f, roughness = 0.25f)
     }
     val fluidMaterial = remember(materialLoader, accent) {
-        materialLoader.createColorInstance(SceneColor(accent.red, accent.green, accent.blue, 1f), metallic = 0.15f, roughness = 0.28f)
+        materialLoader.createColorInstance(accent, metallic = 0.15f, roughness = 0.28f)
     }
 
-    SceneView(
+    Scene(
         modifier = modifier,
         engine = engine,
         materialLoader = materialLoader,
         environmentLoader = environmentLoader,
         environment = environment,
-        cameraNode = io.github.sceneview.rememberCameraNode(engine) { position = Position(z = 5.5f, y = 0.15f) },
-        cameraManipulator = null,
+        cameraNode = camera,
         mainLightNode = mainLight,
-        fillLightNode = null
+        cameraManipulator = null
     ) {
-        CylinderNode(
-            radius = 0.78f,
-            height = 2.55f,
-            sideCount = 48,
-            materialInstance = bodyMaterial,
-            position = Position(y = 0f),
-            rotation = Rotation(x = 0f, y = tilt.yaw * 0.02f, z = -tilt.roll * 0.18f)
-        )
-        CylinderNode(
-            radius = 0.57f,
-            height = 1.80f,
-            sideCount = 48,
-            materialInstance = fluidMaterial,
-            position = Position(y = -0.33f + snapshot.levelPercent.coerceIn(0, 100) / 100f * 0.82f, z = 0.06f),
-            rotation = Rotation(z = -tilt.roll * 0.18f),
-            scale = Scale(x = 1f, y = maxOf(0.05f, snapshot.levelPercent.coerceIn(0, 100) / 100f), z = 1f)
-        )
-        TorusNode(
-            majorRadius = 0.81f,
-            minorRadius = 0.045f,
-            majorSegments = 48,
-            minorSegments = 12,
-            materialInstance = fluidMaterial,
-            position = Position(y = 1.30f)
-        )
         LightNode(
             type = LightManager.Type.POINT,
-            position = Position(0f, 0.7f, 2.5f),
             apply = {
                 intensity(1_200f)
                 color(accent.red, accent.green, accent.blue)
                 falloff(5f)
             }
         )
+        Node(
+            rotation = Rotation(z = -tilt.roll * 0.18f, y = tilt.yaw * 0.02f)
+        ) {
+            CylinderNode(
+                radius = 0.78f,
+                height = 2.55f,
+                sideCount = 48,
+                materialInstance = bodyMaterial,
+                position = Position(y = 0f)
+            )
+            CylinderNode(
+                radius = 0.57f,
+                height = 1.80f,
+                sideCount = 48,
+                materialInstance = fluidMaterial,
+                position = Position(y = -0.33f + snapshot.levelPercent.coerceIn(0, 100) / 100f * 0.82f, z = 0.06f),
+                scale = Scale(x = 1f, y = maxOf(0.05f, snapshot.levelPercent.coerceIn(0, 100) / 100f), z = 1f)
+            )
+            CylinderNode(
+                radius = 0.82f,
+                height = 0.10f,
+                sideCount = 48,
+                materialInstance = fluidMaterial,
+                position = Position(y = 1.30f)
+            )
+        }
     }
 }
 
@@ -153,7 +151,7 @@ private fun DashboardHud(
     }
     Column(modifier = modifier.padding(12.dp)) {
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            StatusChip(if (snapshot.isCharging) "⚡ CARGANDO" else if (snapshot.isFull) "✓ COMPLETA" else "○ EN USO", accent)
+            StatusChip(if (snapshot.isFull) "✓ COMPLETA" else if (snapshot.isCharging) "⚡ CARGANDO" else "○ EN USO", accent)
             StatusChip(if (healthPercent != null) "SALUD $healthPercent%" else "SALUD —", accent)
         }
         Spacer(Modifier.height(12.dp))
