@@ -43,7 +43,10 @@ fun BatteryDashboard(viewModel: BatteryViewModel) {
             healthPercent = health?.roundedPercent,
             charging = snapshot.isCharging,
             full = snapshot.isFull,
-            etaMinutes = eta?.toInt(),
+            etaMinutes = eta?.coerceAtLeast(0L)?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt(),
+            plugged = snapshot.plugged,
+            technology = snapshot.technology,
+            present = snapshot.present,
         )
     }
 
