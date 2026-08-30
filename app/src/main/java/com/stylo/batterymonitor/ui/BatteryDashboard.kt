@@ -32,6 +32,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,9 +44,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.stylo.batterymonitor.data.BatteryHealthAnalyzer
 import com.stylo.batterymonitor.data.BatterySnapshot
@@ -80,6 +85,28 @@ private fun DashboardScreen(snapshot: BatterySnapshot, prediction: ChargingTimeP
     val temp = snapshot.temperatureC?.let { "%.1f °C".format(it) } ?: "—"
     val voltage = snapshot.voltageMv?.let { "$it mV" } ?: "—"
     val status = when { snapshot.isFull -> "Completa"; snapshot.isCharging -> "Cargando"; else -> "En uso" }
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val webView = remember { Abateri3DView(context) }
+
+    DisposableEffect(lifecycleOwner, webView) {
+        lifecycleOwner.lifecycle.addObserver(webView)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(webView) }
+    }
+    LaunchedEffect(snapshot, health, prediction) {
+        webView.updateTelemetry(
+            level = level,
+            temperatureC = snapshot.temperatureC,
+            voltageMv = snapshot.voltageMv,
+            currentMa = snapshot.currentMa,
+            powerMw = snapshot.powerMw,
+            healthPercent = health?.roundedPercent,
+            charging = snapshot.isCharging,
+            full = snapshot.isFull,
+            etaMinutes = prediction?.minutesRemaining,
+        )
+    }
+
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Spacer(Modifier.height(14.dp))
@@ -90,6 +117,14 @@ private fun DashboardScreen(snapshot: BatterySnapshot, prediction: ChargingTimeP
                 }
                 IconButton(onClick = { navigate(2) }) { Icon(Icons.Default.Info, "Información") }
                 IconButton(onClick = { navigate(1) }) { Icon(Icons.Default.Info, "Histórico") }
+            }
+        }
+        item {
+            Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                Column(Modifier.fillMaxWidth().padding(10.dp)) {
+                    AndroidView(factory = { webView }, modifier = Modifier.fillMaxWidth().height(330.dp))
+                    Text("Vista 3D interactiva · inclina o arrastra para explorar", modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         item {
