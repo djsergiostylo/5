@@ -39,6 +39,9 @@ class BatteryViewModel(application: Application) : AndroidViewModel(application)
                     _prediction.value = ChargingTimePredictor.predict(points)
                 } else if (!value.isCharging) {
                     _prediction.value = null
+                    if (sessionId > 0L) {
+                        _health.value = healthAnalyzer.analyze()
+                    }
                 }
             }
         }
