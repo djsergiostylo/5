@@ -50,7 +50,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.stylo.batterymonitor.data.BatteryHealthAnalyzer
 import com.stylo.batterymonitor.data.BatterySnapshot
+import com.stylo.batterymonitor.data.ChargingTimePredictor
+import com.stylo.batterymonitor.data.local.ChargeSessionEntity
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -75,10 +78,13 @@ fun BatteryDashboard(viewModel: BatteryViewModel) {
 }
 
 @Composable
-private fun DashboardScreen(snapshot: BatterySnapshot, prediction: Any?, health: Any?, session: Any?, navigate: (Int) -> Unit) {
+private fun DashboardScreen(snapshot: BatterySnapshot, prediction: ChargingTimePredictor.Prediction?, health: BatteryHealthAnalyzer.HealthResult?, session: ChargeSessionEntity?, navigate: (Int) -> Unit) {
     val level = snapshot.levelPercent.coerceIn(0, 100)
     val animatedLevel by animateFloatAsState(level / 100f, tween(700, easing = FastOutSlowInEasing), label = "level")
     val accent = if (snapshot.isCharging) Color(0xFF58E6A0) else MaterialTheme.colorScheme.primary
+    val temp = snapshot.temperatureC?.let { "%.1f °C".format(it) } ?: "—"
+    val voltage = snapshot.voltageMv?.let { "$it mV" } ?: "—"
+    val status = when { snapshot.isFull -> "Completa"; snapshot.isCharging -> "Cargando"; else -> "En uso" }
 
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
@@ -97,24 +103,27 @@ private fun DashboardScreen(snapshot: BatterySnapshot, prediction: Any?, health:
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     BatteryOrb(animatedLevel, accent, snapshot.isCharging)
                     Text("$level%", fontSize = 48.sp, fontWeight = FontWeight.Black)
-                    Text(if (snapshot.isCharging) "CARGANDO" else "BATERÍA", fontWeight = FontWeight.Bold, color = accent)
+                    Text(status.uppercase(), fontWeight = FontWeight.Bold, color = accent)
                 }
             }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricCard("Temperatura", "${snapshot.temperatureCelsius} °C", Icons.Default.Thermostat, Modifier.weight(1f))
-                MetricCard("Voltaje", "${snapshot.voltageMv} mV", Icons.Default.Bolt, Modifier.weight(1f))
+                MetricCard("Temperatura", temp, Icons.Default.Thermostat, Modifier.weight(1f))
+                MetricCard("Voltaje", voltage, Icons.Default.Bolt, Modifier.weight(1f))
             }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricCard("Estado", snapshot.statusLabel, Icons.Default.BatteryChargingFull, Modifier.weight(1f))
-                MetricCard("Salud", health?.toString()?.takeIf { it.isNotBlank() } ?: "Pendiente", Icons.Default.Info, Modifier.weight(1f))
+                MetricCard("Salud", health?.roundedPercent?.let { "$it%" } ?: "Pendiente", Icons.Default.Info, Modifier.weight(1f))
+                MetricCard("Sesiones", health?.sessionsUsed?.toString() ?: "0", Icons.Default.History, Modifier.weight(1f))
             }
         }
-        item { InsightCard("Predicción de carga", prediction?.toString()?.takeIf { it.isNotBlank() } ?: "Calculando con histórico…", Icons.Default.Bolt) }
-        item { InsightCard("Sesión", if (session != null) "Sesión activa · datos guardados automáticamente" else "Sin sesión activa", Icons.Default.History) }
+        item {
+            val text = prediction?.let { if (it.minutesRemaining <= 0) "Carga completa" else "≈ ${it.minutesRemaining} min hasta 100%" } ?: "Necesita más datos de carga"
+            InsightCard("Predicción", text, Icons.Default.Bolt)
+        }
+        item { InsightCard("Sesión", if (session != null) "Carga activa · mediciones guardadas automáticamente" else "Sin sesión activa", Icons.Default.History) }
         item { Text("Datos locales · ABATERI 1.0", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(bottom = 24.dp)) }
     }
 }
@@ -161,7 +170,7 @@ private fun InsightCard(title: String, body: String, icon: ImageVector) {
 }
 
 @Composable
-private fun HistoryScreen(snapshot: BatterySnapshot, session: Any?, back: () -> Unit) {
+private fun HistoryScreen(snapshot: BatterySnapshot, session: ChargeSessionEntity?, back: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(18.dp)) {
         TopBar("Histórico", back)
         Spacer(Modifier.height(12.dp))
@@ -172,7 +181,7 @@ private fun HistoryScreen(snapshot: BatterySnapshot, session: Any?, back: () -> 
                 Text("ABATERI conserva las mediciones para analizar sesiones de carga y estimar la salud de la batería.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(14.dp))
                 Text("Nivel actual: ${snapshot.levelPercent}%")
-                Text("Temperatura: ${snapshot.temperatureCelsius} °C")
+                Text("Temperatura: ${snapshot.temperatureC?.let { "%.1f °C".format(it) } ?: "—"}")
                 Text(if (session != null) "Sesión actual: activa" else "Sesión actual: ninguna")
             }
         }
