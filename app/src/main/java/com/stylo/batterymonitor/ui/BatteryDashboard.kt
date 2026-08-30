@@ -12,13 +12,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-/**
- * ABATERY dashboard.
- *
- * The Claude-generated HTML is the single source of truth for the visible UI.
- * Compose is only the native host/telemetry adapter; it must not render a
- * second dashboard underneath or around the WebView.
- */
+/** The Claude HTML is the single visible dashboard; Compose only hosts telemetry. */
 @Composable
 fun BatteryDashboard(viewModel: BatteryViewModel) {
     val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
@@ -34,16 +28,22 @@ fun BatteryDashboard(viewModel: BatteryViewModel) {
     }
 
     LaunchedEffect(snapshot, health, prediction) {
+        val eta = snapshot.chargeTimeRemainingMin ?: prediction?.minutesRemaining
         webView.updateTelemetry(
             level = snapshot.levelPercent,
             temperatureC = snapshot.temperatureC,
             voltageMv = snapshot.voltageMv,
             currentMa = snapshot.currentMa,
             powerMw = snapshot.powerMw,
+            currentAverageMa = snapshot.currentAverageMa,
+            chargeCounterMah = snapshot.chargeCounterMah,
+            energyWh = snapshot.energyWh,
+            cycleCount = snapshot.cycleCount,
+            chargeTimeRemainingMin = snapshot.chargeTimeRemainingMin,
             healthPercent = health?.roundedPercent,
             charging = snapshot.isCharging,
             full = snapshot.isFull,
-            etaMinutes = prediction?.minutesRemaining?.toInt(),
+            etaMinutes = eta?.toInt(),
         )
     }
 
