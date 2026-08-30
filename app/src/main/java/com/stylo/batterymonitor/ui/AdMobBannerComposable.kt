@@ -8,6 +8,8 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 
+private const val TEST_BANNER_AD_UNIT = "ca-app-pub-3940256099942544/6300978111"
+
 @Composable
 fun AdMobBannerComposable(modifier: Modifier = Modifier) {
     AndroidView(
@@ -24,8 +26,4 @@ fun AdMobBannerComposable(modifier: Modifier = Modifier) {
             }
         },
     )
-
-    companion object {
-        private const val TEST_BANNER_AD_UNIT = "ca-app-pub-3940256099942544/6300978111"
-    }
 }
