@@ -1,39 +1,33 @@
 # Project Memory
 
 ## Purpose
-Professional Android application for thermal and battery monitoring. This repository is the active development workspace for the real-world comparison against other AI development agents.
+Professional Android application for thermal and battery monitoring. Repository 5 is the active development workspace.
 
-## Current stack
-- Kotlin
-- Jetpack Compose
-- Material 3
-- MVVM
-- Android API 35 for CI/build compatibility
-- GitHub Actions for reproducible builds
+## Architecture
+- Kotlin + Jetpack Compose + Material 3 + MVVM.
+- Battery telemetry is acquired directly on Android with `ACTION_BATTERY_CHANGED` and `BatteryManager` properties.
+- 3D rendering is native Android with SceneView/Filament; the previous HTML/WebView frontend has been removed.
+- Device orientation uses native `SensorManager` / `TYPE_ROTATION_VECTOR` with smoothing.
+- Room stores bounded local snapshots and charging sessions for historical analysis.
+- There is no remote backend/API in this product; the data path is entirely on-device.
 
-## Core requirements
-- Efficient battery monitoring using `Intent.ACTION_BATTERY_CHANGED`.
-- Temperature in °C, voltage in mV, current in mA, battery percentage, technology, charging/status and health.
-- Avoid sensor/broadcast leaks. Receiver lifecycle must be tied to the application/view-model lifecycle.
-- No unnecessary background service. Therefore no foreground-service or notification permissions unless a future requirement explicitly needs them.
-- Dashboard: pure dark visual language, `#121212` background and `#1E1E1E` cards, rounded corners, prominent temperature/battery values, thermal orange/red accents and green charging/healthy indicators, compact 2x2 secondary metrics.
-- Do not invent battery efficiency when Android does not expose the required input-power measurement. Clearly distinguish measured values from derived values.
+## Product rules
+- Show real Android measurements only.
+- Derived power is clearly labelled as derived from voltage × current.
+- A metric that the device does not expose is shown as `No disponible`.
+- No simulation/test controls in the production UI.
+- No AdMob, notification permission or unnecessary background service in the current release candidate.
+- Full battery state is distinguished from active charging.
 
-## Build/verification history
-- Initial CI attempt failed because Android API 37 was unavailable on the runner.
-- CI was changed to API 35 and explicit SDK/build-tools installation.
-- Subsequent CI runs reached unit tests but failed there, so APK assembly was skipped.
-- The project is not considered successful until unit tests pass, `assembleDebug` succeeds, the APK exists and GitHub Actions uploads the APK artifact.
+## Verification state
+- SceneView `4.33.0` was rejected because CI showed Kotlin metadata 2.4.0 while the project compiler expects 2.1.0.
+- SceneView `3.1.1` is pinned because its upstream build uses Kotlin `2.1.21`, compatible with this project line.
+- A CI run must still finish with: unit tests pass, debug APK assembles, release APK assembles, APKs are verified and artifacts are published.
+- Do not call the app Play Store ready until a signed release artifact is produced and manually tested on the target phone.
 
-## Working rules for future agents
-1. Inspect the current repository before changing architecture or versions.
-2. Diagnose the exact failing build/test step before making dependency changes.
-3. Prefer minimal, evidence-based fixes over repeated version changes.
-4. Never claim a successful build without an actual successful CI result and APK artifact.
-5. Preserve working functionality while fixing failures.
-6. After every significant build fix, rerun CI and inspect the result.
-7. Keep commits small and descriptive (`feat:`, `fix:`, `test:`, `chore:`, `ci:`, `docs:`).
-8. Treat this as a professional production-quality engineering exercise, not a demo.
-
-## Next immediate objective
-Find and fix the failing unit tests, then obtain a clean GitHub Actions run that executes tests, assembles the debug APK, verifies it exists, and uploads `app-debug.apk`.
+## Working rules
+1. Diagnose failures from actual code/CI before changing versions.
+2. Keep manifest permissions minimal and justified.
+3. Keep the telemetry pipeline lifecycle-safe.
+4. Never fabricate measurements.
+5. Never claim successful APK generation without CI evidence and an actual artifact.

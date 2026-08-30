@@ -8,8 +8,15 @@ data class BatterySnapshot(
     val levelPercent: Int = 0,
     val temperatureC: Double? = null,
     val voltageMv: Int? = null,
+    /** Net battery current in mA: positive charging, negative discharging. */
     val currentMa: Double? = null,
+    /** Net battery power in mW: positive charging, negative discharging. */
     val powerMw: Double? = null,
+    val currentAverageMa: Double? = null,
+    val chargeCounterMah: Double? = null,
+    val energyWh: Double? = null,
+    val cycleCount: Int? = null,
+    val chargeTimeRemainingMin: Long? = null,
     val technology: String = "Unknown",
     val status: Int = BatteryManager.BATTERY_STATUS_UNKNOWN,
     val health: Int = BatteryManager.BATTERY_HEALTH_UNKNOWN,
