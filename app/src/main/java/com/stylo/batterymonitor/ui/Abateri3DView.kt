@@ -10,7 +10,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import org.json.JSONObject
 
-/** Native WebView host for the Claude-generated ABATERI 3D telemetry scene. */
+/** Native WebView host for the Claude-generated ABATERY 3D telemetry scene. */
 @SuppressLint("SetJavaScriptEnabled")
 class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserver {
     private val tiltMonitor = DeviceTiltMonitor(context)
@@ -49,7 +49,10 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
         healthPercent: Int?,
         charging: Boolean,
         full: Boolean,
-        etaMinutes: Int?
+        etaMinutes: Int?,
+        plugged: Int,
+        technology: String,
+        present: Boolean,
     ) {
         pendingTelemetry = JSONObject().apply {
             put("levelPercent", level.coerceIn(0, 100))
@@ -66,6 +69,9 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
             put("isCharging", charging)
             put("isFull", full)
             put("estimatedMinutes", etaMinutes ?: JSONObject.NULL)
+            put("plugged", plugged)
+            put("technology", technology)
+            put("isPresent", present)
         }
         pushTelemetry()
     }
