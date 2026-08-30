@@ -1,45 +1,47 @@
-# Stylo Battery Monitor
+# ABATERI
 
-Professional Android battery and thermal telemetry dashboard built with Kotlin, Jetpack Compose, Material 3, and MVVM.
+Professional Android battery and thermal telemetry dashboard built with Kotlin, Jetpack Compose, Material 3, MVVM, Room and WorkManager.
 
-## Scope
+## Current scope
 
-The first release focuses on live device battery telemetry:
-
-- Battery temperature in °C.
-- Battery voltage in mV.
-- Instantaneous battery current in mA, with a signed value where supported.
-- Derived battery power in mW.
-- Battery level in %.
-- Battery technology.
-- Charging state.
-- Battery health.
-
-The app intentionally does **not** run a foreground service. `ACTION_BATTERY_CHANGED` is a protected sticky broadcast that must be received through a context-registered receiver, so no manifest broadcast receiver or notification permission is required for the core dashboard.
+- Live battery temperature, voltage, current and battery-side power.
+- Battery level, technology, charging state and Android-reported health.
+- Persistent local snapshot history through Room.
+- Charge-session tracking (plug-in → unplug/full).
+- Experimental charging-time prediction using the current session curve.
+- Experimental state-of-health estimate from completed sessions with usable charging telemetry.
+- Thermal alert when the battery remains at or above 42 °C for 2 minutes.
+- AdMob banner and rewarded-ad integration using Google test ad identifiers for development.
 
 ## Architecture
 
-`MainActivity` → `BatteryDashboard` → `BatteryViewModel` → `BatteryMonitorRepository` → Android `BatteryManager` / `ACTION_BATTERY_CHANGED`.
+`MainActivity` → `BatteryDashboard` → `BatteryViewModel` → `BatteryMonitorRepository` + Room/WorkManager services.
 
-The repository owns the dynamically registered receiver and is backed by the application context. `BatteryViewModel.onCleared()` unregisters the receiver, preventing receiver/context leaks.
+The repository owns the dynamically registered `ACTION_BATTERY_CHANGED` receiver and uses the application context. No foreground service is required for the core dashboard.
 
 ## Build target
 
-- Kotlin 2.4.10
-- Android Gradle Plugin 9.1.2
-- Gradle 9.3.1
-- Compile SDK 37
-- Target SDK 36
+- Kotlin 2.1.20
+- Android Gradle Plugin 8.9.2
+- Gradle 8.11.1
+- Compile SDK 35
+- Target SDK 35
 - Min SDK 26
-- Jetpack Compose BOM 2026.08.00
-- Material 3 1.4.x through the Compose BOM
+- Jetpack Compose BOM 2025.05.00
+- Room 2.7.1
+- WorkManager 2.11.2
+- Google Mobile Ads SDK 25.4.0
 
 ## Permissions
 
-No dangerous permissions are required. The app does not request location, storage, phone, Bluetooth, notification, or foreground-service permissions.
+The app requests `POST_NOTIFICATIONS` on Android 13+ so persistent thermal alerts can be delivered. AdMob dependencies may contribute the networking permissions required by their SDK.
 
-## Measurement limitation
+## Measurement limitations
 
-Android exposes battery telemetry through platform APIs, but exact availability and accuracy of instantaneous current and some other fields are device-dependent. When instantaneous current is unavailable, the app falls back to `BATTERY_PROPERTY_CURRENT_AVERAGE`; if neither is available, current and derived power are shown as unavailable rather than fabricated.
+Battery current and other telemetry fields are device-dependent. Current falls back to `BATTERY_PROPERTY_CURRENT_AVERAGE` when instantaneous current is unavailable. Charger input power and true charger-to-battery efficiency are not directly exposed by standard Android battery APIs, so the app does not fabricate an efficiency value.
 
-A true charger-to-battery efficiency percentage cannot be calculated from the standard battery APIs alone because charger input power is not exposed as a direct measurement. The dashboard therefore reports battery-side power instead of inventing an efficiency value.
+The SOH and charging-time features are estimates derived from observed telemetry; they should be treated as experimental indicators rather than laboratory-grade measurements.
+
+## Release note
+
+AdMob currently uses Google test application/ad-unit identifiers. Replace them with production identifiers and implement the applicable consent flow before public monetized release.
