@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>ABATERY — Energy Platform 3D</title>
+<style>
+:root{
+  --bg:#05080f;--surface:#0b0f1a;--surface2:#111826;
+  --border:#1a2235;--border2:#243048;
+  --green:#3dff7a;--green-dim:#1a5c35;--green-glow:rgba(61,255,122,.18);
+  --blue:#4488ff;--amber:#ffaa33;--red:#ff4444;
+  --text:#e8edf5;--muted:#4a5568;--muted2:#2d3748;
+  --font-mono:'JetBrains Mono','Fira Mono','Consolas',monospace;
+  --font-ui:'Inter',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font-ui);overflow-x:hidden}
+body{display:flex;flex-direction:column;align-items:center}
+.app{width:100%;max-width:420px;display:flex;flex-direction:column;min-height:100dvh}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.logo{font-family:var(--font-mono);font-size:15px;font-weight:700;letter-spacing:.22em;color:var(--text);text-shadow:0 0 20px var(--green-glow)}
+.logo span{color:var(--green)}
+.live-badge{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.14em;color:var(--green)}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 6px var(--green)}50%{opacity:.25;box-shadow:none}}
+.status-bar{padding:6px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.status-mode{font-size:8px;color:var(--muted);letter-spacing:.1em}
+.status-state{font-size:9px;font-weight:700;letter-spacing:.1em}
+.status-state.charging{color:var(--green)}
+.status-state.idle{color:var(--muted)}
+.scene-wrap{position:relative;width:100%;height:280px;background:linear-gradient(180deg,#060b14 0%,#030608 100%);overflow:hidden}
+#three-canvas{width:100%!important;height:100%!important;display:block}
+.scene-overlay{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 50% at 50% 40%,rgba(61,255,122,.04),transparent 70%)}
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:12px 14px}
+.hud-top{display:flex;justify-content:space-between;align-items:flex-start}
+.hud-bottom{display:flex;justify-content:space-around;align-items:flex-end;padding-bottom:6px}
+.pct-display{text-align:center;flex:1}
+.pct-num{font-family:var(--font-mono);font-size:64px;font-weight:700;color:#fff;line-height:1;text-shadow:0 0 40px rgba(61,255,122,.35),0 2px 4px rgba(0,0,0,.8)}
+.pct-unit{font-size:24px;color:var(--green);opacity:.8}
+.pct-label{font-size:8px;letter-spacing:.18em;color:var(--muted);margin-top:3px}
+.hud-stat{text-align:center}
+.hud-stat-val{font-family:var(--font-mono);font-size:13px;font-weight:700;color:#fff;text-shadow:0 0 12px var(--green-glow)}
+.hud-stat-lbl{font-size:7px;letter-spacing:.1em;color:var(--muted);margin-top:2px}
+.tag{font-size:8px;font-weight:700;letter-spacing:.1em;border:1px solid var(--border2);border-radius:5px;padding:3px 7px;color:var(--muted);background:rgba(5,8,15,.7);backdrop-filter:blur(4px)}
+.tag.green{border-color:var(--green-dim);color:var(--green)}
+.metrics-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border)}
+.metric-cell{background:var(--surface);padding:10px 8px;text-align:center;position:relative;overflow:hidden}
+.metric-cell::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.metric-cell.v::after{background:linear-gradient(90deg,transparent,var(--blue),transparent)}
+.metric-cell.a::after{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.metric-cell.t::after{background:linear-gradient(90deg,transparent,var(--amber),transparent)}
+.metric-val{font-family:var(--font-mono);font-size:19px;font-weight:700;color:var(--text);line-height:1}
+.metric-unit{font-size:10px;color:var(--muted);font-weight:400}
+.metric-name{font-size:8px;letter-spacing:.1em;color:var(--muted);margin-top:3px}
+.metric-desc{font-size:7px;color:var(--muted2);margin-top:2px;line-height:1.35}
+.charge-section{padding:12px 14px;border-top:1px solid var(--border)}
+.charge-header{display:flex;justify-content:space-between;font-size:8px;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
+.charge-track{height:10px;background:var(--surface2);border-radius:10px;overflow:hidden;position:relative;border:1px solid var(--border)}
+.charge-fill{height:100%;border-radius:10px;position:relative;transition:width .6s cubic-bezier(.4,0,.2,1);background:linear-gradient(90deg,#1a7a3a,var(--green))}
+.charge-glow{position:absolute;right:-2px;top:50%;transform:translateY(-50%);width:16px;height:16px;border-radius:50%;background:var(--green);filter:blur(6px);opacity:.7;animation:glowPulse 1.2s ease-in-out infinite}
+@keyframes glowPulse{0%,100%{opacity:.7;transform:translateY(-50%) scale(1)}50%{opacity:.3;transform:translateY(-50%) scale(.6)}}
+.ecg-section{padding:10px 14px;border-top:1px solid var(--border);background:var(--surface)}
+.ecg-label{font-size:7px;letter-spacing:.12em;color:var(--muted2);margin-bottom:5px}
+.ecg-svg{width:100%;height:32px;display:block}
+.insight-section{margin:0 14px 12px;background:linear-gradient(135deg,rgba(10,26,16,.9),rgba(6,14,10,.9));border:1px solid var(--green-dim);border-radius:10px;padding:10px 13px;display:flex;gap:9px}
+.insight-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.insight-title{font-size:10px;font-weight:700;color:var(--green);margin-bottom:3px}
+.insight-text{font-size:9px;color:#4a7a5a;line-height:1.6}
+.insight-text b{color:#7ab090;font-weight:600}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 12px}
+.info-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid var(--border2);position:relative;overflow:hidden}
+.info-card.good{border-left-color:var(--green)}
+.info-card.warn{border-left-color:var(--amber)}
+.info-card.premium{border-left-color:#cc88ff}
+.info-label{font-size:8px;letter-spacing:.1em;color:var(--muted);margin-bottom:5px}
+.info-val{font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--text);line-height:1}
+.info-unit{font-size:10px;color:var(--muted);font-weight:400}
+.info-sub{font-size:8px;color:var(--muted);margin-top:3px}
+.info-sub.green{color:var(--green)}
+.info-sub.amber{color:var(--amber)}
+.premium-badge{position:absolute;top:6px;right:8px;font-size:7px;letter-spacing:.08em;background:rgba(204,136,255,.12);border:1px solid rgba(204,136,255,.3);color:#cc88ff;border-radius:4px;padding:2px 5px}
+.controls{display:flex;gap:8px;padding:0 14px 12px}
+.ctrl-btn{flex:1;padding:9px 6px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--muted);font-size:9px;font-weight:700;letter-spacing:.08em;cursor:pointer;transition:border-color .15s,color .15s}
+.ctrl-btn:active{transform:scale(.97);border-color:var(--green);color:var(--green)}
+.admob-slot{width:100%;min-height:50px;background:var(--surface2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.admob-placeholder{font-size:8px;letter-spacing:.1em;color:var(--muted2)}
+.footer{display:flex;justify-content:space-between;padding:8px 16px 12px;border-top:1px solid var(--border);font-size:7px;letter-spacing:.1em;color:var(--muted2)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="logo">A<span>BATERY</span></div>
+    <div class="live-badge"><div class="live-dot"></div>EN VIVO</div>
+  </header>
+  <div class="status-bar">
+    <div class="status-mode" id="gyro-mode">MODO 3D · TOCA GIROSCOPIO</div>
+    <div class="status-state charging" id="charge-state">CARGANDO</div>
+  </div>
+  <div class="scene-wrap">
+    <canvas id="three-canvas"></canvas>
+    <div class="scene-overlay"></div>
+    <div class="hud">
+      <div class="hud-top">
+        <div class="tag green" id="plug-type">USB-C · 18W</div>
+        <div class="tag" id="health-tag" style="color:#3dff7a;border-color:#1a5c35">SALUD 87%</div>
+      </div>
+      <div class="pct-display">
+        <div class="pct-num" id="pct-big">72<span class="pct-unit">%</span></div>
+        <div class="pct-label">NIVEL DE BATERIA</div>
+      </div>
+      <div class="hud-bottom">
+        <div class="hud-stat"><div class="hud-stat-val" id="h-v">4.21V</div><div class="hud-stat-lbl">VOLTAJE</div></div>
+        <div class="hud-stat"><div class="hud-stat-val" id="h-w">11.9W</div><div class="hud-stat-lbl">POTENCIA</div></div>
+        <div class="hud-stat"><div class="hud-stat-val" id="h-t">31C</div><div class="hud-stat-lbl">TEMP</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="metrics-row">
+    <div class="metric-cell v"><div class="metric-val" id="m-v">4.21<span class="metric-unit">V</span></div><div class="metric-name">VOLTAJE</div><div class="metric-desc">Presion electrica<br>3.5-4.35V normal</div></div>
+    <div class="metric-cell a"><div class="metric-val" id="m-a">2.84<span class="metric-unit">A</span></div><div class="metric-name">CORRIENTE</div><div class="metric-desc">Velocidad de carga<br>Mas A = mas rapido</div></div>
+    <div class="metric-cell t"><div class="metric-val" id="m-t">31<span class="metric-unit">C</span></div><div class="metric-name">TEMPERATURA</div><div class="metric-desc">Ideal menos 40C<br>Dano mayor 45C</div></div>
+  </div>
+  <div class="charge-section">
+    <div class="charge-header"><span>CARGA ACTUAL</span><span id="eta-label">~47 min para 100%</span></div>
+    <div class="charge-track"><div class="charge-fill" id="charge-fill" style="width:72%"><div class="charge-glow"></div></div></div>
+  </div>
+  <div class="ecg-section">
+    <div class="ecg-label">PULSO DE CARGA EN TIEMPO REAL</div>
+    <svg class="ecg-svg" id="ecg-svg" viewBox="0 0 360 32" preserveAspectRatio="none">
+      <polyline id="ecg-line" fill="none" stroke="#3dff7a" stroke-width="1.4"
+        points="0,16 40,16 52,16 57,3 62,29 67,16 110,16 122,16 127,3 132,29 137,16 180,16 192,16 197,3 202,29 207,16 250,16 262,16 267,3 272,29 277,16 320,16 332,16 337,3 342,29 347,16 360,16"/>
+    </svg>
+  </div>
+  <div class="insight-section">
+    <div class="insight-icon" id="insight-icon">💡</div>
+    <div><div class="insight-title" id="insight-title">Cargando a ritmo optimo</div><div class="insight-text" id="insight-text"><b>Voltaje en zona alta</b> — bateria casi llena, corriente bajara sola. <b>Temperatura perfecta</b>. Puedes usar el movil.</div></div>
+  </div>
+  <div class="info-grid">
+    <div class="info-card good"><div class="info-label">SALUD BATERIA</div><div class="info-val" id="c-health">87<span class="info-unit">%</span></div><div class="info-sub green">Estado: Buena</div></div>
+    <div class="info-card warn"><div class="info-label">TIEMPO EST.</div><div class="info-val" id="c-eta">~47<span class="info-unit">min</span></div><div class="info-sub amber">Para llegar al 100%</div></div>
+    <div class="info-card good"><div class="info-label">POTENCIA</div><div class="info-val" id="c-power">11.9<span class="info-unit">W</span></div><div class="info-sub green">Carga rapida activa</div></div>
+    <div class="info-card premium"><div class="premium-badge">PREMIUM</div><div class="info-label">ANALISIS SOH</div><div class="info-val" style="font-size:13px;color:#cc88ff">Ver informe</div><div class="info-sub" style="color:#7a5a99">Historial de sesiones</div></div>
+  </div>
+  <div class="controls">
+    <button class="ctrl-btn" onclick="activarGiroscopio()">GIROSCOPIO</button>
+    <button class="ctrl-btn" onclick="centrar()">CENTRAR</button>
+    <button class="ctrl-btn" onclick="simularDatos()">SIMULAR</button>
+  </div>
+  <!-- ADMOB BANNER SLOT: Android WebView inyecta el banner aqui -->
+  <div class="admob-slot" id="admob-banner"><div class="admob-placeholder">BANNER ADMOB 320x50</div></div>
+  <footer class="footer"><span>ABATERY · ENERGY PLATFORM v2.0</span><span id="footer-tech">Li-Ion</span></footer>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/three.module.min.js';
+let chargeLevel=.72,tempC=31;
+const wrap=document.querySelector('.scene-wrap'),canvas=document.getElementById('three-canvas');
+const W=wrap.clientWidth,H=wrap.clientHeight;
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setSize(W,H);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x03060a,.06);
+const camera=new THREE.PerspectiveCamera(42,W/H,.1,60);
+camera.position.set(0,1.2,7);camera.lookAt(0,0,0);
+scene.add(new THREE.AmbientLight(0x0d1a2a,2));
+const kL=new THREE.DirectionalLight(0x3dff7a,3);kL.position.set(3,6,4);kL.castShadow=true;scene.add(kL);
+const rL=new THREE.DirectionalLight(0x4488ff,1.5);rL.position.set(-5,3,-3);scene.add(rL);
+const fL=new THREE.PointLight(0x3dff7a,2,10);fL.position.set(0,1,4);scene.add(fL);
+scene.add(new THREE.PointLight(0xffffff,.8,8));
+const fl=new THREE.Mesh(new THREE.PlaneGeometry(14,10),new THREE.MeshStandardMaterial({color:0x030609,metalness:.9,roughness:.2}));
+fl.rotation.x=-Math.PI/2;fl.position.y=-2.1;fl.receiveShadow=true;scene.add(fl);
+const gh=new THREE.GridHelper(12,16,0x0d2535,0x081520);gh.position.y=-2.09;scene.add(gh);
+const bg=new THREE.Group();scene.add(bg);
+const bMat=new THREE.MeshStandardMaterial({color:0x18222e,metalness:.92,roughness:.12});
+const body=new THREE.Mesh(new THREE.CylinderGeometry(.72,.72,2.4,48),bMat);body.castShadow=true;bg.add(body);
+const cMat=new THREE.MeshStandardMaterial({color:0x22303f,metalness:.95,roughness:.08});
+const bc=new THREE.Mesh(new THREE.CylinderGeometry(.73,.70,.14,48),cMat);bc.position.y=-1.27;bg.add(bc);
+const tc=new THREE.Mesh(new THREE.CylinderGeometry(.73,.73,.14,48),cMat.clone());tc.position.y=1.27;bg.add(tc);
+const tm=new THREE.Mesh(new THREE.CylinderGeometry(.20,.20,.22,24),new THREE.MeshStandardMaterial({color:0xcccccc,metalness:1,roughness:.04}));tm.position.y=1.42;bg.add(tm);
+let fillH=2.2*chargeLevel;
+const fMat=new THREE.MeshStandardMaterial({color:0x22cc55,emissive:0x0a4422,emissiveIntensity:.5,metalness:.2,roughness:.45,transparent:true,opacity:.88});
+const fMesh=new THREE.Mesh(new THREE.CylinderGeometry(.60,.60,fillH,48),fMat);fMesh.position.y=-1.1+fillH/2;bg.add(fMesh);
+const rMat=new THREE.MeshStandardMaterial({color:0x3dff7a,emissive:0x3dff7a,emissiveIntensity:1.6,metalness:0,roughness:1});
+const lRing=new THREE.Mesh(new THREE.TorusGeometry(.73,.045,10,60),rMat);lRing.position.y=fMesh.position.y+fillH/2;bg.add(lRing);
+const pc=80,pGeo=new THREE.BufferGeometry(),pp=new Float32Array(pc*3);
+for(let i=0;i<pc;i++){pp[i*3]=(Math.random()-.5)*8;pp[i*3+1]=(Math.random()-.5)*5;pp[i*3+2]=(Math.random()-.5)*6;}
+pGeo.setAttribute('position',new THREE.BufferAttribute(pp,3));
+const pts=new THREE.Points(pGeo,new THREE.PointsMaterial({color:0x3dff7a,size:.04,transparent:true,opacity:.45}));scene.add(pts);
+let tRX=0,tRY=0,cRX=0,cRY=0;
+wrap.addEventListener('pointermove',e=>{const r=wrap.getBoundingClientRect();tRY=((e.clientX-r.left)/r.width-.5)*1.4;tRX=((e.clientY-r.top)/r.height-.5)*-.7;});
+window.activarGiroscopio=async function(){try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){const p=await DeviceOrientationEvent.requestPermission();if(p!=='granted')throw new Error();}window.addEventListener('deviceorientation',e=>{tRY=Math.max(-1,Math.min(1,(e.gamma||0)/28));tRX=Math.max(-.5,Math.min(.5,((e.beta||45)-45)/40));},true);document.getElementById('gyro-mode').textContent='MODO 3D · GIROSCOPIO ACTIVO';}catch(e){document.getElementById('gyro-mode').textContent='SENSOR NO DISPONIBLE';}};
+window.centrar=function(){tRX=0;tRY=0;};
+window.AbateryBridge={updateBattery(d){try{_apply(JSON.parse(d));}catch(e){}}};
+function _apply(d){
+  const pct=d.levelPercent??72,temp=d.temperatureC??31;
+  const volt=d.voltageMv?(d.voltageMv/1000).toFixed(2):'—';
+  const curr=d.currentMa?(Math.abs(d.currentMa)/1000).toFixed(2):'—';
+  const pwr=d.powerMw?(d.powerMw/1000).toFixed(1):'—';
+  const mins=d.estimatedMinutes??null,health=d.healthPercent??87,chrg=d.isCharging??true;
+  chargeLevel=pct/100;tempC=temp;
+  let col=new THREE.Color(0x22cc55),hex='#3dff7a';
+  if(temp>45){col.set(0xff3333);hex='#ff4444';}else if(temp>40){col.set(0xff8800);hex='#ffaa33';}else if(temp>36){col.set(0xccaa00);hex='#ffdd44';}
+  const nh=2.2*chargeLevel;fMesh.geometry.dispose();fMesh.geometry=new THREE.CylinderGeometry(.60,.60,nh,48);
+  fMesh.position.y=-1.1+nh/2;fMesh.material.color.copy(col);fMesh.material.emissive.copy(col).multiplyScalar(.3);
+  lRing.material.color.copy(col);lRing.material.emissive.copy(col);lRing.position.y=fMesh.position.y+nh/2;
+  fL.color.copy(col);
+  document.getElementById('pct-big').innerHTML=pct+'<span class="pct-unit">%</span>';
+  document.getElementById('charge-fill').style.width=pct+'%';
+  document.getElementById('charge-fill').style.background='linear-gradient(90deg,#1a5a2a,'+hex+')';
+  document.querySelector('.charge-glow').style.background=hex;
+  document.querySelector('.live-dot').style.background=hex;
+  document.getElementById('m-v').innerHTML=volt+'<span class="metric-unit">V</span>';
+  document.getElementById('m-a').innerHTML=curr+'<span class="metric-unit">A</span>';
+  document.getElementById('m-t').innerHTML=Math.round(temp)+'<span class="metric-unit">C</span>';
+  document.getElementById('h-v').textContent=volt+'V';
+  document.getElementById('h-w').textContent=pwr+'W';
+  document.getElementById('h-t').textContent=Math.round(temp)+'C';
+  document.getElementById('c-power').innerHTML=pwr+'<span class="info-unit">W</span>';
+  document.getElementById('c-health').innerHTML=health+'<span class="info-unit">%</span>';
+  document.getElementById('eta-label').textContent=mins!=null?'~'+mins+' min para 100%':'Calculando...';
+  document.getElementById('c-eta').innerHTML=mins!=null?'~'+mins+'<span class="info-unit">min</span>':'<span style="font-size:12px">—</span>';
+  const se=document.getElementById('charge-state');se.textContent=chrg?'CARGANDO':'DESCONECTADO';se.className='status-state '+(chrg?'charging':'idle');
+  let icon='💡',title='',text='';
+  if(!chrg){icon='🔌';title='Sin carga';text='Conecta el cable para comenzar a cargar.';}
+  else if(temp>45){icon='🔥';title='Temperatura critica';text='<b>Quita la funda ya.</b> Por encima de 45C la bateria sufre dano permanente.';}
+  else if(temp>40){icon='⚠️';title='Temperatura elevada';text='Normal en carga rapida. <b>Evita tapar el movil</b> o usarlo mucho.';}
+  else if(pct>=95){icon='✅';title='Casi llena';text='El cargador termina la carga. A partir del 95% carga <b>mas despacio a proposito</b> para proteger la bateria.';}
+  else{icon='💡';title='Cargando a ritmo optimo';text='<b>Voltaje '+volt+'V</b> zona normal. <b>Temperatura perfecta.</b> Todo en orden.';}
+  document.getElementById('insight-icon').textContent=icon;
+  document.getElementById('insight-title').textContent=title;
+  document.getElementById('insight-text').innerHTML=text;
+}
+window.simularDatos=function(){const pct=Math.floor(Math.random()*60)+30,temp=Math.floor(Math.random()*22)+26,volt=(3.5+(pct/100)*0.8).toFixed(2),curr=(Math.random()*2+1).toFixed(2),pwr=(volt*curr).toFixed(1),mins=Math.round((100-pct)*4.6);_apply({levelPercent:pct,voltageMv:parseFloat(volt)*1000,currentMa:parseFloat(curr)*1000,temperatureC:temp,powerMw:parseFloat(pwr)*1000,isCharging:true,estimatedMinutes:mins,healthPercent:87});};
+let t2=0;
+function loop(){requestAnimationFrame(loop);t2+=.014;cRX+=(tRX-cRX)*.055;cRY+=(tRY-cRY)*.055;
+bg.rotation.x=cRX*.45;bg.rotation.y=t2*.28+cRY*.9;
+fL.intensity=1.8+Math.sin(t2*1.8)*.5;
+const pa=pGeo.attributes.position.array;for(let i=0;i<pc;i++){pa[i*3+1]+=.003;if(pa[i*3+1]>3)pa[i*3+1]=-2.5;}
+pGeo.attributes.position.needsUpdate=true;renderer.render(scene,camera);}
+loop();
+(function ecg(){const l=document.getElementById('ecg-line');const ps=l.getAttribute('points').split(' ');const mv=ps.map(p=>{let[x,y]=p.split(',').map(Number);x=(x-1.8+360)%360;return x+','+y;});l.setAttribute('points',mv.join(' '));requestAnimationFrame(ecg);})();
+</script>
+</body>
+</html>
