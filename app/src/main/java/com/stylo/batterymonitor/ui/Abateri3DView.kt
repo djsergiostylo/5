@@ -16,7 +16,7 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
     private val tiltMonitor = DeviceTiltMonitor(context)
     private var pageReady = false
     private var lifecycleStarted = false
-    private var pendingTelemetry: JSONObject = JSONObject()
+    private var pendingTelemetry = JSONObject()
 
     init {
         setBackgroundColor(Color.TRANSPARENT)
@@ -32,7 +32,7 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
                 if (lifecycleStarted) startTilt()
             }
         }
-        loadUrl("file:///android_asset/abateri_3d.html")
+        loadUrl("file:///android_asset/abatery_3d.html")
     }
 
     fun updateTelemetry(
@@ -47,15 +47,16 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
         etaMinutes: Int?
     ) {
         pendingTelemetry = JSONObject().apply {
-            put("level", level.coerceIn(0, 100))
-            put("temp", temperatureC ?: JSONObject.NULL)
-            put("voltage", voltageMv ?: JSONObject.NULL)
-            put("current", currentMa ?: JSONObject.NULL)
-            put("power", powerMw ?: JSONObject.NULL)
-            put("health", healthPercent ?: JSONObject.NULL)
-            put("charging", charging)
-            put("full", full)
-            put("eta", etaMinutes ?: JSONObject.NULL)
+            // Keep the public payload aligned with Claude's HTML API.
+            put("levelPercent", level.coerceIn(0, 100))
+            put("temperatureC", temperatureC ?: JSONObject.NULL)
+            put("voltageMv", voltageMv ?: JSONObject.NULL)
+            put("currentMa", currentMa ?: JSONObject.NULL)
+            put("powerMw", powerMw ?: JSONObject.NULL)
+            put("healthPercent", healthPercent ?: JSONObject.NULL)
+            put("isCharging", charging)
+            put("isFull", full)
+            put("estimatedMinutes", etaMinutes ?: JSONObject.NULL)
         }
         pushTelemetry()
     }
@@ -63,14 +64,22 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
     private fun pushTelemetry() {
         if (!pageReady) return
         val payload = JSONObject.quote(pendingTelemetry.toString())
-        post { evaluateJavascript("window.AbateryBridge && window.AbateryBridge.updateBattery($payload)", null) }
+        post {
+            evaluateJavascript(
+                "window.AbateryBridge && window.AbateryBridge.updateBattery($payload)",
+                null
+            )
+        }
     }
 
     private fun startTilt() {
         if (!lifecycleStarted) return
         tiltMonitor.start { pitch, roll, yaw ->
             post {
-                evaluateJavascript("window.setDeviceTilt(${pitch},${roll},${yaw})", null)
+                evaluateJavascript(
+                    "window.setDeviceTilt(${pitch},${roll},${yaw})",
+                    null
+                )
             }
         }
     }
