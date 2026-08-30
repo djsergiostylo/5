@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>ABATERI 3D</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#fff}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#070b10;touch-action:none}#v{width:100%;height:100%;display:block}#hud{position:absolute;inset:12px;pointer-events:none;display:flex;flex-direction:column;gap:7px}.glass{background:#0b1119cc;border:1px solid #ffffff20;backdrop-filter:blur(12px);border-radius:14px;box-shadow:0 8px 30px #0005}.badge{align-self:flex-start;padding:7px 11px;font-size:10px;letter-spacing:1.1px;font-weight:800}.top{display:flex;align-items:flex-start;justify-content:flex-end;gap:8px}.metric{padding:8px 11px;text-align:right;min-width:82px}.value{font-size:18px;font-weight:900}.label{font-size:9px;color:#8e9aaa;letter-spacing:.7px}.status{align-self:flex-end;padding:7px 11px;font-size:10px;font-weight:800;letter-spacing:.6px}.bottom{margin-top:auto;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}.context{padding:10px 12px;font-size:11px;line-height:1.35;color:#c9d1da}.context b{display:block;color:#fff;margin-bottom:3px}.ad{width:320px;max-width:calc(100vw - 24px);height:50px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:9px;color:#667281;letter-spacing:1px}.sim{pointer-events:auto;border:1px solid #ffffff22;background:#121a25e8;color:#fff;border-radius:12px;padding:9px 12px;font-weight:800;font-size:10px}.ecg{height:28px;margin-top:2px;opacity:.9}#admob-banner{display:none}
+</style>
+</head>
+<body>
+<canvas id="v"></canvas>
+<div id="hud">
+ <span class="badge glass">ABATERI · IMMERSIVE 3D TELEMETRY</span>
+ <div class="top"><div class="metric glass"><div id="pct" class="value">--%</div><div class="label">BATERÍA</div></div><div class="metric glass"><div id="temp" class="value">-- °C</div><div class="label">TEMPERATURA</div></div></div>
+ <div class="status glass" id="status">ESPERANDO DATOS</div>
+ <div class="bottom"><div class="context glass"><b id="contextTitle">Analizando batería…</b><span id="contextText">Los datos del teléfono aparecerán aquí.</span><div class="ecg"><svg viewBox="0 0 260 28" preserveAspectRatio="none" width="100%" height="28"><path id="ecgPath" d="M0 14H52L58 14 63 4 68 24 73 14H118L124 14 129 9 134 19 139 14H260" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div></div><button id="sim" class="sim">SIMULAR</button></div>
+ <div class="ad glass" id="admob-banner">ADMOB BANNER · 320×50</div>
+</div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js';
+const canvas=document.getElementById('v');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.75));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x070b10);scene.fog=new THREE.Fog(0x070b10,5,12);
+const camera=new THREE.PerspectiveCamera(34,1,.1,50);camera.position.set(3,2.4,5.2);
+const controls=new OrbitControls(camera,canvas);controls.enablePan=false;controls.enableDamping=true;controls.dampingFactor=.07;controls.minDistance=3.2;controls.maxDistance=7;controls.autoRotate=true;controls.autoRotateSpeed=.28;
+scene.add(new THREE.HemisphereLight(0xaed0ff,0x10151d,1.2));const key=new THREE.DirectionalLight(0xffffff,2.6);key.position.set(3,5,4);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);
+const rim=new THREE.PointLight(0x35d07f,10,8);rim.position.set(-3,1,2);scene.add(rim);
+const floor=new THREE.Mesh(new THREE.CircleGeometry(7,64),new THREE.MeshStandardMaterial({color:0x0c1118,metalness:.45,roughness:.62}));floor.rotation.x=-Math.PI/2;floor.position.y=-1.42;floor.receiveShadow=true;scene.add(floor);
+const battery=new THREE.Group();scene.add(battery);
+const body=new THREE.Mesh(new THREE.BoxGeometry(2.2,3.5,.85),new THREE.MeshStandardMaterial({color:0x202a36,metalness:.82,roughness:.23}));body.position.y=.35;body.castShadow=true;body.receiveShadow=true;battery.add(body);
+const edge=new THREE.LineSegments(new THREE.EdgesGeometry(body.geometry),new THREE.LineBasicMaterial({color:0x8b98a8,transparent:true,opacity:.5}));edge.position.copy(body.position);battery.add(edge);
+const liquidMat=new THREE.MeshPhysicalMaterial({color:0x35d07f,emissive:0x0b6b36,emissiveIntensity:.45,metalness:.12,roughness:.1,transparent:true,opacity:.9});const liquid=new THREE.Mesh(new THREE.BoxGeometry(1.72,2.6,.5),liquidMat);liquid.position.set(0,-.35,.48);liquid.castShadow=true;battery.add(liquid);
+const glow=new THREE.PointLight(0x35d07f,4,4);glow.position.set(0,0,1);battery.add(glow);
+const top=new THREE.Mesh(new THREE.BoxGeometry(1.75,.12,.58),new THREE.MeshStandardMaterial({color:0x111820,metalness:.9,roughness:.18}));top.position.set(0,2.15,0);battery.add(top);for(const x of[-.62,.62]){const t=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.25,32),new THREE.MeshStandardMaterial({color:0xc8d0d8,metalness:.96,roughness:.16}));t.position.set(x,2.32,0);t.castShadow=true;battery.add(t)}
+const particles=new THREE.Group();for(let i=0;i<55;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(.012+Math.random()*.025,8,8),new THREE.MeshBasicMaterial({color:0x71ffae,transparent:true,opacity:.3+Math.random()*.3}));p.position.set((Math.random()-.5)*3,-1.15+Math.random()*4.3,(Math.random()-.5)*1.6);p.userData.phase=Math.random()*6.28;particles.add(p)}scene.add(particles);
+let data={level:72,temp:31,voltage:null,current:null,power:null,health:null,eta:null,charging:false,full:false};let target={pitch:0,roll:0,yaw:0},tilt={pitch:0,roll:0,yaw:0};
+const $=id=>document.getElementById(id);function colorFor(t){return t>=45?0xff3b30:t>=40?0xffa726:0x35d07f}function statusText(){return data.full?'COMPLETA':data.charging?'CARGANDO':'EN USO'}
+function context(){let title='Batería estable',text='Temperatura y nivel dentro de un rango normal.';if(data.temp>=45){title='Temperatura crítica';text='La batería está muy caliente. Evita carga intensa y revisa el dispositivo.'}else if(data.temp>=40){title='Temperatura elevada';text='La temperatura está por encima de lo habitual.'}else if(data.full){title='Carga completa';text='La batería ha alcanzado el 100 %.'}else if(data.charging){title='Carga en progreso';text=data.eta!=null?'Estimación hasta 100 %: ≈ '+data.eta+' min.':'Cargando; acumulando datos para estimar el tiempo.'}else if(data.level<=15){title='Nivel bajo';text='Queda poca batería. Considera conectar el cargador.'}$("contextTitle").textContent=title;$("contextText").textContent=text}
+function apply(){const c=colorFor(data.temp),hex='#'+c.toString(16).padStart(6,'0');liquid.scale.y=Math.max(.03,data.level/100);liquid.position.y=-1.65+1.3*data.level/100;liquidMat.color.set(c);liquidMat.emissive.set(c);rim.color.set(c);glow.color.set(c);$("pct").textContent=Math.round(data.level)+'%';$("temp").textContent=(Number.isFinite(data.temp)?data.temp.toFixed(1):'--')+' °C';$("status").textContent=statusText();$("status").style.color=hex;context()}
+window.AbateryBridge={updateBattery(json){try{const d=typeof json==='string'?JSON.parse(json):json;data={...data,...d};apply()}catch(e){console.warn('ABATERI telemetry',e)}}};
+window.setBatteryData=(level,temp)=>window.AbateryBridge.updateBattery({level:Number(level)||0,temp:Number(temp)||0});window.setDeviceTilt=(pitch,roll,yaw)=>{target={pitch:Number(pitch)||0,roll:Number(roll)||0,yaw:Number(yaw)||0}};
+$("sim").onclick=()=>window.AbateryBridge.updateBattery({level:15+Math.random()*85,temp:25+Math.random()*25,charging:Math.random()>.35,full:false,eta:Math.round(Math.random()*90)});
+function resize(){const w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize,{passive:true});resize();apply();
+function tick(t){const now=t*.001;tilt.pitch+=(target.pitch-tilt.pitch)*.08;tilt.roll+=(target.roll-tilt.roll)*.08;tilt.yaw+=(target.yaw-tilt.yaw)*.05;battery.rotation.x=THREE.MathUtils.degToRad(-tilt.pitch*.22);battery.rotation.z=THREE.MathUtils.degToRad(-tilt.roll*.32);battery.rotation.y=THREE.MathUtils.degToRad(tilt.yaw*.08);particles.rotation.y=now*.045;particles.children.forEach(p=>p.position.y+=Math.sin(now*1.5+p.userData.phase)*.0007);const path=$("ecgPath");path.style.transform='translateX('+((now*35)%26)+'px)';controls.update();renderer.render(scene,camera);requestAnimationFrame(tick)}requestAnimationFrame(tick);
+</script></body></html>
