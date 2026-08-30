@@ -7,7 +7,6 @@ import com.stylo.batterymonitor.data.BatteryHealthAnalyzer
 import com.stylo.batterymonitor.data.BatteryMonitorRepository
 import com.stylo.batterymonitor.data.ChargeSessionTracker
 import com.stylo.batterymonitor.data.ChargingTimePredictor
-import com.stylo.batterymonitor.data.ThermalAlertManager
 import com.stylo.batterymonitor.data.local.BatteryDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +18,6 @@ class BatteryViewModel(application: Application) : AndroidViewModel(application)
     private val dao = BatteryDatabase.getInstance(application).batteryDao()
     private val sessionTracker = ChargeSessionTracker(dao)
     private val healthAnalyzer = BatteryHealthAnalyzer(dao)
-    private val thermalAlertManager = ThermalAlertManager(application)
 
     private val _prediction = MutableStateFlow<ChargingTimePredictor.Prediction?>(null)
     val prediction: StateFlow<ChargingTimePredictor.Prediction?> = _prediction.asStateFlow()
@@ -28,25 +26,23 @@ class BatteryViewModel(application: Application) : AndroidViewModel(application)
     val health: StateFlow<BatteryHealthAnalyzer.HealthResult?> = _health.asStateFlow()
 
     val snapshot = repository.snapshot
-    val activeSession = sessionTracker.activeSession
 
     init {
         repository.start()
         viewModelScope.launch {
             repository.snapshot.collect { value ->
-                thermalAlertManager.observe(value)
                 val sessionId = sessionTracker.consume(value)
-                if (sessionId > 0L && value.isCharging) {
-                    val points = dao.latestSnapshotsForSession(sessionId, 10)
+                if (value.isCharging && sessionId > 0L) {
+                    val points = dao.latestSnapshotsForSession(sessionId, 12)
                         .reversed()
                         .map { ChargingTimePredictor.SnapshotPoint(it.timestampMs, it.levelPercent) }
                     _prediction.value = ChargingTimePredictor.predict(points)
                 } else if (!value.isCharging) {
                     _prediction.value = null
-                    _health.value = healthAnalyzer.analyze()
                 }
             }
         }
+        refreshHealth()
     }
 
     fun refreshHealth() {
