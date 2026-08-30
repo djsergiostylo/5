@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.stylo.batterymonitor.BuildConfig
 import com.stylo.batterymonitor.data.BatterySnapshot
 import com.stylo.batterymonitor.ui.theme.BatteryGreen
 import com.stylo.batterymonitor.ui.theme.CardSurface
@@ -59,7 +60,30 @@ fun BatteryDashboard(viewModel: BatteryViewModel) {
             HeroCard(snapshot)
             SecondaryMetrics(snapshot)
             StatusCard(snapshot)
+            BuildInfo()
         }
+    }
+}
+
+@Composable
+private fun BuildInfo() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "v${BuildConfig.VERSION_NAME}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium,
+        )
+        Text(
+            text = "Build ${BuildConfig.VERSION_CODE}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
