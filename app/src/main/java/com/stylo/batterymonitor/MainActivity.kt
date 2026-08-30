@@ -6,7 +6,6 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.ads.MobileAds
 import com.stylo.batterymonitor.ui.BatteryDashboard
@@ -20,7 +19,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Keep the Claude HTML viewport below the Android system bars. The HTML
+        // already owns its complete top bar and must not be rendered underneath
+        // the status/navigation bars.
         window.isNavigationBarContrastEnforced = false
         MobileAds.initialize(this)
         rewardedAdManager.preload(this)
