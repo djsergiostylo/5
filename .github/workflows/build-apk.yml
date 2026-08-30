@@ -9,7 +9,6 @@ jobs:
   build:
     name: Build debug APK
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout feat/v2-monetized
         uses: actions/checkout@v4
@@ -25,6 +24,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
