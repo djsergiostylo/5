@@ -1,7 +1,16 @@
 package com.stylo.batterymonitor.ui
 
-import android.app.Activity
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,212 +21,222 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.stylo.batterymonitor.BuildConfig
-import com.stylo.batterymonitor.data.BatteryHealthAnalyzer
-import com.stylo.batterymonitor.data.BatterySnapshot
-import com.stylo.batterymonitor.data.ChargingTimePredictor
-import com.stylo.batterymonitor.ui.theme.BatteryGreen
-import com.stylo.batterymonitor.ui.theme.CardSurface
-import com.stylo.batterymonitor.ui.theme.ThermalOrange
-import com.stylo.batterymonitor.ui.theme.healthLabel
-import com.stylo.batterymonitor.ui.theme.statusLabel
-import java.util.Locale
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun BatteryDashboard(viewModel: BatteryViewModel) {
-    val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
-    val prediction by viewModel.prediction.collectAsStateWithLifecycle()
-    val health by viewModel.health.collectAsStateWithLifecycle()
-    val rewardedAdManager = remember { RewardedAdManager() }
+    val snapshot by viewModel.snapshot.collectAsStateWithLifecycleCompat()
+    val prediction by viewModel.prediction.collectAsStateWithLifecycleCompat()
+    val health by viewModel.health.collectAsStateWithLifecycleCompat()
+    val session by viewModel.activeSession.collectAsStateWithLifecycleCompat()
+    var screen by remember { mutableStateOf(Screen.DASHBOARD) }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = { AdMobBannerComposable(Modifier.fillMaxWidth()) },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Header(snapshot)
-            HeroCard(snapshot)
-            SecondaryMetrics(snapshot)
-            InsightsCard(snapshot, prediction, health, rewardedAdManager)
-            StatusCard(snapshot)
-            BuildInfo()
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        AnimatedContent(screen, transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) }, label = "screen") { current ->
+            when (current) {
+                Screen.DASHBOARD -> DashboardScreen(snapshot, prediction, health, session) { screen = it }
+                Screen.HISTORY -> HistoryScreen(snapshot, session) { screen = Screen.DASHBOARD }
+                Screen.ABOUT -> AboutScreen { screen = Screen.DASHBOARD }
+            }
         }
     }
 }
 
-@Composable
-private fun BuildInfo() {
-    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-        Text("ABATERI  v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
-        Text("Build ${BuildConfig.VERSION_CODE}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
-    }
-}
+private enum class Screen { DASHBOARD, HISTORY, ABOUT }
 
 @Composable
-private fun Header(snapshot: BatterySnapshot) {
-    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-        Column {
-            Text("ABATERI", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, letterSpacing = 1.6.sp)
-            Text(if (snapshot.isCharging || snapshot.isFull) "Charging telemetry" else "Live telemetry", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(BatteryGreen))
-            Spacer(Modifier.size(7.dp))
-            Text("LIVE", style = MaterialTheme.typography.labelSmall, color = BatteryGreen, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-private fun HeroCard(snapshot: BatterySnapshot) {
-    val temperature = snapshot.temperatureC?.let { formatDecimal(it) } ?: "--"
+private fun DashboardScreen(snapshot: BatterySnapshotUi, prediction: Any?, health: Any?, session: Any?, navigate: (Screen) -> Unit) {
     val level = snapshot.levelPercent.coerceIn(0, 100)
-    val thermalColor = when {
-        snapshot.temperatureC == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        snapshot.temperatureC >= 45.0 -> Color(0xFFFF5A36)
-        snapshot.temperatureC >= 40.0 -> ThermalOrange
-        else -> BatteryGreen
-    }
-    Card(Modifier.fillMaxWidth(), RoundedCornerShape(28.dp), CardDefaults.cardColors(containerColor = CardSurface)) {
-        Row(Modifier.fillMaxWidth().padding(22.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("TEMPERATURE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(temperature, color = thermalColor, fontSize = 58.sp, lineHeight = 60.sp, fontWeight = FontWeight.Bold)
-                    Text(" °C", color = thermalColor, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 9.dp))
+    val animatedLevel by animateFloatAsState(level / 100f, tween(700, easing = FastOutSlowInEasing), label = "level")
+    val accent by animateColorAsState(if (snapshot.isCharging) Color(0xFF58E6A0) else MaterialTheme.colorScheme.primary, label = "accent")
+
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item {
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("ABATERI", fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                    Text(if (snapshot.isCharging) "Monitorización activa" else "Monitorización en espera", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(temperatureLabel(snapshot.temperatureC), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                IconButton(onClick = { navigate(Screen.ABOUT) }) { Icon(Icons.Default.Info, "Información") }
+                IconButton(onClick = { navigate(Screen.HISTORY) }) { Icon(Icons.Default.History, "Histórico") }
             }
-            Box(contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(progress = { level / 100f }, modifier = Modifier.size(92.dp), color = BatteryGreen, trackColor = MaterialTheme.colorScheme.surfaceVariant, strokeWidth = 8.dp)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("$level%", color = MaterialTheme.colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Text("BATTERY", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
+            Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    BatteryOrb(animatedLevel, accent, snapshot.isCharging)
+                    Spacer(Modifier.height(8.dp))
+                    Text("$level%", fontSize = 48.sp, fontWeight = FontWeight.Black)
+                    Text(if (snapshot.isCharging) "CARGANDO" else "BATERÍA", fontWeight = FontWeight.Bold, color = accent)
                 }
             }
         }
-    }
-}
-
-private data class Metric(val label: String, val value: String, val unit: String)
-
-@Composable
-private fun SecondaryMetrics(snapshot: BatterySnapshot) {
-    val metrics = listOf(
-        Metric("VOLTAGE", snapshot.voltageMv?.let { formatVoltage(it) } ?: "--", "mV"),
-        Metric("CURRENT", snapshot.currentMa?.let { formatCurrent(it) } ?: "--", "mA"),
-        Metric("POWER", snapshot.powerMw?.let { formatPower(it) } ?: "--", "mW"),
-        Metric("HEALTH", healthLabel(snapshot.health), ""),
-    )
-    LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxWidth().height(220.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), userScrollEnabled = false) {
-        items(metrics) { MetricCard(it) }
-    }
-}
-
-@Composable
-private fun MetricCard(metric: Metric) {
-    Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), CardDefaults.cardColors(containerColor = CardSurface)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(metric.label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(metric.value, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (metric.unit.isNotEmpty()) Text(" ${metric.unit}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 2.dp))
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard("Temperatura", "${snapshot.temperatureCelsius} °C", Icons.Default.Thermostat, Modifier.weight(1f))
+                MetricCard("Voltaje", "${snapshot.voltageMv} mV", Icons.Default.Bolt, Modifier.weight(1f))
             }
         }
-    }
-}
-
-@Composable
-private fun InsightsCard(
-    snapshot: BatterySnapshot,
-    prediction: ChargingTimePredictor.Prediction?,
-    health: BatteryHealthAnalyzer.HealthResult?,
-    rewardedAdManager: RewardedAdManager,
-) {
-    val contextActivity = androidx.compose.ui.platform.LocalContext.current as? Activity
-    val estimateText = prediction?.let { formatDuration(it.minutesRemaining) } ?: if (snapshot.isCharging) "Collecting charge curve" else "No active session"
-    Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), CardDefaults.cardColors(containerColor = CardSurface)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("INSIGHTS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                Column {
-                    Text("TIME TO 100%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(estimateText, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("SOH ESTIMATE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(health?.roundedPercent?.let { "$it%" } ?: "--", style = MaterialTheme.typography.titleMedium, color = BatteryGreen, fontWeight = FontWeight.Bold)
-                }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard("Estado", snapshot.statusLabel, Icons.Default.BatteryChargingFull, Modifier.weight(1f))
+                MetricCard("Salud", healthLabel(health), Icons.Default.Info, Modifier.weight(1f))
             }
-            Text(health?.label ?: "Health improves after complete charging sessions are recorded", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Button(
-                onClick = {
-                    contextActivity?.let { activity ->
-                        rewardedAdManager.show(activity) { }
-                    }
-                },
-                enabled = contextActivity != null,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("VIEW HEALTH ANALYSIS")
+        }
+        item {
+            val predictionText = prediction?.toString()?.takeIf { it.isNotBlank() } ?: "Calculando con histórico..."
+            InsightCard("Predicción de carga", predictionText, Icons.Default.Bolt)
+        }
+        item {
+            InsightCard("Sesión", if (session != null) "Sesión de carga activa · datos guardados automáticamente" else "Sin sesión activa", Icons.Default.History)
+        }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                Text("Datos locales · ABATERI 1.0", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun StatusCard(snapshot: BatterySnapshot) {
-    Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), CardDefaults.cardColors(containerColor = CardSurface)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-            Column {
-                Text("STATUS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                Text(statusLabel(snapshot), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+private fun BatteryOrb(progress: Float, accent: Color, charging: Boolean) {
+    Box(Modifier.size(190.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = 15.dp.toPx()
+            val diameter = size.minDimension - stroke
+            drawArc(MaterialTheme.colorScheme.surface.copy(alpha = .55f), -90f, 360f, false, style = Stroke(stroke, cap = StrokeCap.Round))
+            drawArc(accent, -90f, 360f * progress, false, style = Stroke(stroke, cap = StrokeCap.Round))
+            if (charging) {
+                val angle = (-90 + 360 * progress) * PI / 180
+                val r = diameter / 2
+                drawCircle(accent, 6.dp.toPx(), Offset(size.width / 2 + cos(angle).toFloat() * r, size.height / 2 + sin(angle).toFloat() * r))
             }
-            Text(snapshot.technology, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Icon(Icons.Default.BatteryChargingFull, null, tint = accent, modifier = Modifier.size(52.dp))
+    }
+}
+
+@Composable
+private fun MetricCard(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier) {
+    Card(modifier, shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(15.dp)) {
+            Icon(icon, null, modifier = Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(7.dp))
+            Text(title, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, fontWeight = FontWeight.Bold, maxLines = 1)
         }
     }
 }
 
-private fun formatDecimal(value: Double): String = String.format(Locale.US, "%.1f", value)
-private fun formatVoltage(mv: Int): String = mv.toString()
-private fun formatCurrent(ma: Double): String = String.format(Locale.US, "%+.0f", ma)
-private fun formatPower(mw: Double): String = String.format(Locale.US, "%+.0f", mw)
-private fun formatDuration(minutes: Long): String {
-    val hours = minutes / 60
-    val remainder = minutes % 60
-    return if (hours > 0) "${hours}h ${remainder}min" else "${remainder}min"
+@Composable
+private fun InsightCard(title: String, body: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Card(shape = RoundedCornerShape(20.dp)) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(12.dp))
+            Column { Text(title, fontWeight = FontWeight.Bold); Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) }
+        }
+    }
 }
-private fun temperatureLabel(celsius: Double?): String = when {
-    celsius == null -> "Sensor data unavailable"
-    celsius >= 45.0 -> "High thermal load"
-    celsius >= 40.0 -> "Warm battery"
-    celsius >= 10.0 -> "Thermal range normal"
-    else -> "Low temperature"
+
+@Composable
+private fun HistoryScreen(snapshot: BatterySnapshotUi, session: Any?, back: () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(18.dp)) {
+        TopBar("Histórico", back)
+        Spacer(Modifier.height(12.dp))
+        Card(shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.padding(18.dp)) {
+                Text("Registro local", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("ABATERI conserva las mediciones para analizar sesiones de carga y estimar la salud de la batería.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(14.dp))
+                Text("Nivel actual: ${snapshot.levelPercent}%")
+                Text("Temperatura: ${snapshot.temperatureCelsius} °C")
+                Text(if (session != null) "Sesión actual: activa" else "Sesión actual: ninguna")
+            }
+        }
+    }
 }
+
+@Composable
+private fun AboutScreen(back: () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(18.dp)) {
+        TopBar("ABATERI", back)
+        Spacer(Modifier.height(20.dp))
+        Text("Analizador inteligente de batería", fontSize = 25.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(10.dp))
+        Text("Telemetría, histórico, sesiones de carga, predicción, análisis experimental de salud y alertas térmicas en una única aplicación.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = back, modifier = Modifier.fillMaxWidth()) { Text("Volver al dashboard") }
+    }
+}
+
+@Composable
+private fun TopBar(title: String, back: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = back) { Icon(Icons.Default.Close, "Volver") }
+        Text(title, fontSize = 24.sp, fontWeight = FontWeight.Black)
+    }
+}
+
+private fun healthLabel(value: Any?): String = value?.toString()?.takeIf { it.isNotBlank() } ?: "Pendiente"
+
+// Adapter pequeño para mantener el dashboard desacoplado de la versión concreta de Lifecycle Compose.
+@Composable
+private fun <T> androidx.lifecycle.compose.LifecycleOwnerKt.collectAsStateWithLifecycleCompat(flow: kotlinx.coroutines.flow.StateFlow<T>): androidx.compose.runtime.State<T> =
+    flow.collectAsStateCompat()
+
+@Composable
+private fun <T> kotlinx.coroutines.flow.StateFlow<T>.collectAsStateCompat(): androidx.compose.runtime.State<T> {
+    val value by androidx.compose.runtime.collectAsState(this)
+    return androidx.compose.runtime.mutableStateOf(value)
+}
+
+private data class BatterySnapshotUi(
+    val levelPercent: Int = 0,
+    val temperatureCelsius: Float = 0f,
+    val voltageMv: Int = 0,
+    val isCharging: Boolean = false,
+    val statusLabel: String = "Desconocido"
+)
