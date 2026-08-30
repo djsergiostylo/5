@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "com.stylo.batterymonitor"
     compileSdk = 35
+
     defaultConfig {
         applicationId = "com.stylo.batterymonitor"
         minSdk = 26
@@ -15,6 +16,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
     }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -26,17 +28,21 @@ android {
             versionNameSuffix = "-debug"
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlin {
         compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
     }
+
     buildFeatures {
         compose = true
         buildConfig = true
     }
+
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }
 
@@ -57,8 +63,6 @@ dependencies {
     implementation("androidx.room:room-runtime:2.7.1")
     implementation("androidx.room:room-ktx:2.7.1")
     kapt("androidx.room:room-compiler:2.7.1")
-    implementation("androidx.work:work-runtime-ktx:2.11.2")
-    implementation("com.google.android.gms:play-services-ads:24.9.0")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
