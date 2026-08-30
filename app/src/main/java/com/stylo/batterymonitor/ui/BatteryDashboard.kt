@@ -100,7 +100,7 @@ private fun DashboardScreen(snapshot: BatterySnapshot, prediction: ChargingTimeP
             voltageMv = snapshot.voltageMv,
             currentMa = snapshot.currentMa,
             powerMw = snapshot.powerMw,
-            healthPercent = health?.roundedPercent,
+            healthPercent = health?.roundedPercent?.toInt(),
             charging = snapshot.isCharging,
             full = snapshot.isFull,
             etaMinutes = prediction?.minutesRemaining,
