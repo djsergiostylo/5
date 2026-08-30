@@ -25,9 +25,11 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Install Android SDK 35
-        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -72,7 +74,7 @@ jobs:
           echo "### APK generada correctamente" >> "$GITHUB_STEP_SUMMARY"
           echo "**Versión:** ${VERSION_NAME}" >> "$GITHUB_STEP_SUMMARY"
           echo "**Build:** #${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
-          echo "[⬇️ Descargar APK]( ${{ steps.apk.outputs.artifact-url }} )" >> "$GITHUB_STEP_SUMMARY"
+          echo "[⬇️ Descargar APK](${{ steps.apk.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Commit: \\`${GITHUB_SHA::12}\\`" >> "$GITHUB_STEP_SUMMARY"
 
