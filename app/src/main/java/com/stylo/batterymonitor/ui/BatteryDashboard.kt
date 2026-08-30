@@ -6,12 +6,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.fillMaxSize
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.stylo.batterymonitor.data.BatteryHealthAnalyzer
-import com.stylo.batterymonitor.data.ChargingTimePredictor
 
 /**
  * ABATERI dashboard.
@@ -50,6 +49,6 @@ fun BatteryDashboard(viewModel: BatteryViewModel) {
 
     AndroidView(
         factory = { webView },
-        modifier = Modifier
+        modifier = Modifier.fillMaxSize(),
     )
 }
