@@ -1,19 +1,19 @@
 package com.stylo.batterymonitor.ui
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.fillMaxSize
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
- * ABATERI dashboard.
+ * ABATERY dashboard.
  *
  * The Claude-generated HTML is the single source of truth for the visible UI.
  * Compose is only the native host/telemetry adapter; it must not render a
