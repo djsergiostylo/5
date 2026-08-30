@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: ["main", "feat/abateri-3d-complete"]
+    branches: ["main", "feat/abateri-3d-complete", "fix/abatery-final-release"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -23,7 +23,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Prepare preinstalled Android SDK
+      - name: Prepare Android SDK
         run: |
           export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
@@ -32,11 +32,8 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-          sdkmanager --version
           yes | sdkmanager --licenses >/dev/null || true
-
-      - name: Install Android SDK 35
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -45,7 +42,7 @@ jobs:
 
       - name: Set CI version
         run: |
-          VERSION_NAME="1.0.${GITHUB_RUN_NUMBER}"
+          VERSION_NAME="1.1.${GITHUB_RUN_NUMBER}"
           echo "VERSION_NAME=${VERSION_NAME}" >> "$GITHUB_ENV"
           sed -i "s/versionCode = [0-9]*/versionCode = ${GITHUB_RUN_NUMBER}/" app/build.gradle.kts
           sed -i "s/versionName = \"[0-9.]*\"/versionName = \"${VERSION_NAME}\"/" app/build.gradle.kts
@@ -57,41 +54,35 @@ jobs:
       - name: Assemble debug APK
         run: gradle --no-daemon assembleDebug
 
-      - name: Verify APK exists
-        run: test -s app/build/outputs/apk/debug/app-debug.apk
+      - name: Assemble release APK
+        run: gradle --no-daemon assembleRelease
 
-      - name: Rename APK for download
+      - name: Verify APKs
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk \
-            "app/build/outputs/apk/debug/ABATERY-v${VERSION_NAME}-debug.apk"
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          test -s app/build/outputs/apk/release/app-release-unsigned.apk
 
-      - name: Upload APK as standalone artifact
-        id: apk
+      - name: Rename APKs
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/ABATERY-v${VERSION_NAME}-debug.apk"
+          cp app/build/outputs/apk/release/app-release-unsigned.apk "app/build/outputs/apk/release/ABATERY-v${VERSION_NAME}-release-unsigned.apk"
+
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ABATERY-v${{ env.VERSION_NAME }}-debug.apk
-          path: app/build/outputs/apk/debug/ABATERY-v${{ env.VERSION_NAME }}-debug.apk
+          name: ABATERY-v${{ env.VERSION_NAME }}-APKs
+          path: |
+            app/build/outputs/apk/debug/ABATERY-v${{ env.VERSION_NAME }}-debug.apk
+            app/build/outputs/apk/release/ABATERY-v${{ env.VERSION_NAME }}-release-unsigned.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Add APK download link to summary
+      - name: Add build summary
         run: |
           echo "## 📱 ABATERY v${VERSION_NAME}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### APK generada correctamente" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Versión:** ${VERSION_NAME}" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Unit tests passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Debug APK assembled" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Release APK assembled (unsigned)" >> "$GITHUB_STEP_SUMMARY"
           echo "**Build:** #${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Archivo:** ABATERY-v${VERSION_NAME}-debug.apk" >> "$GITHUB_STEP_SUMMARY"
-          echo "[⬇️ Descargar APK (artefacto)](${{ steps.apk.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Commit: \\`${GITHUB_SHA::12}\\`" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Publish GitHub Release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/abateri-3d-complete')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.VERSION_NAME }}
-          name: ABATERY v${{ env.VERSION_NAME }}
-          generate_release_notes: true
-          prerelease: ${{ github.ref != 'refs/heads/main' }}
-          files: app/build/outputs/apk/debug/ABATERY-v${{ env.VERSION_NAME }}-debug.apk
+          echo "**Commit:** ${GITHUB_SHA::12}" >> "$GITHUB_STEP_SUMMARY"
