@@ -1,5 +1,6 @@
 package com.stylo.batterymonitor.ui
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -24,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.stylo.batterymonitor.BuildConfig
+import com.stylo.batterymonitor.data.BatteryHealthAnalyzer
 import com.stylo.batterymonitor.data.BatterySnapshot
+import com.stylo.batterymonitor.data.ChargingTimePredictor
 import com.stylo.batterymonitor.ui.theme.BatteryGreen
 import com.stylo.batterymonitor.ui.theme.CardSurface
 import com.stylo.batterymonitor.ui.theme.ThermalOrange
@@ -45,8 +50,14 @@ import java.util.Locale
 @Composable
 fun BatteryDashboard(viewModel: BatteryViewModel) {
     val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
+    val prediction by viewModel.prediction.collectAsStateWithLifecycle()
+    val health by viewModel.health.collectAsStateWithLifecycle()
+    val rewardedAdManager = remember { RewardedAdManager() }
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = { AdMobBannerComposable(Modifier.fillMaxWidth()) },
+    ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -54,6 +65,7 @@ fun BatteryDashboard(viewModel: BatteryViewModel) {
             Header(snapshot)
             HeroCard(snapshot)
             SecondaryMetrics(snapshot)
+            InsightsCard(snapshot, prediction, health, rewardedAdManager)
             StatusCard(snapshot)
             BuildInfo()
         }
@@ -62,11 +74,7 @@ fun BatteryDashboard(viewModel: BatteryViewModel) {
 
 @Composable
 private fun BuildInfo() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
         Text("ABATERI  v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
         Text("Build ${BuildConfig.VERSION_CODE}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
     }
@@ -147,6 +155,44 @@ private fun MetricCard(metric: Metric) {
 }
 
 @Composable
+private fun InsightsCard(
+    snapshot: BatterySnapshot,
+    prediction: ChargingTimePredictor.Prediction?,
+    health: BatteryHealthAnalyzer.HealthResult?,
+    rewardedAdManager: RewardedAdManager,
+) {
+    val contextActivity = androidx.compose.ui.platform.LocalContext.current as? Activity
+    val estimateText = prediction?.let { formatDuration(it.minutesRemaining) } ?: if (snapshot.isCharging) "Collecting charge curve" else "No active session"
+    Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), CardDefaults.cardColors(containerColor = CardSurface)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("INSIGHTS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                Column {
+                    Text("TIME TO 100%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(estimateText, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("SOH ESTIMATE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(health?.roundedPercent?.let { "$it%" } ?: "--", style = MaterialTheme.typography.titleMedium, color = BatteryGreen, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text(health?.label ?: "Health improves after complete charging sessions are recorded", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(
+                onClick = {
+                    contextActivity?.let { activity ->
+                        rewardedAdManager.show(activity) { }
+                    }
+                },
+                enabled = contextActivity != null,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("VIEW HEALTH ANALYSIS")
+            }
+        }
+    }
+}
+
+@Composable
 private fun StatusCard(snapshot: BatterySnapshot) {
     Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), CardDefaults.cardColors(containerColor = CardSurface)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
@@ -163,6 +209,11 @@ private fun formatDecimal(value: Double): String = String.format(Locale.US, "%.1
 private fun formatVoltage(mv: Int): String = mv.toString()
 private fun formatCurrent(ma: Double): String = String.format(Locale.US, "%+.0f", ma)
 private fun formatPower(mw: Double): String = String.format(Locale.US, "%+.0f", mw)
+private fun formatDuration(minutes: Long): String {
+    val hours = minutes / 60
+    val remainder = minutes % 60
+    return if (hours > 0) "${hours}h ${remainder}min" else "${remainder}min"
+}
 private fun temperatureLabel(celsius: Double?): String = when {
     celsius == null -> "Sensor data unavailable"
     celsius >= 45.0 -> "High thermal load"
