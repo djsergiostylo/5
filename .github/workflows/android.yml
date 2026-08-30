@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "feat/abateri-3d-complete"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -82,15 +82,16 @@ jobs:
           echo "**Versión:** ${VERSION_NAME}" >> "$GITHUB_STEP_SUMMARY"
           echo "**Build:** #${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
           echo "**Archivo:** ABATERY-v${VERSION_NAME}-debug.apk" >> "$GITHUB_STEP_SUMMARY"
-          echo "[⬇️ Descargar APK](${{ steps.apk.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "[⬇️ Descargar APK (artefacto)](${{ steps.apk.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Commit: \\`${GITHUB_SHA::12}\\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish GitHub Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/abateri-3d-complete')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION_NAME }}
           name: ABATERY v${{ env.VERSION_NAME }}
           generate_release_notes: true
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
           files: app/build/outputs/apk/debug/ABATERY-v${{ env.VERSION_NAME }}-debug.apk
