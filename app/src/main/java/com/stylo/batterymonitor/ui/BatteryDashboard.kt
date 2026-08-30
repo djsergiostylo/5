@@ -1,7 +1,5 @@
 package com.stylo.batterymonitor.ui
 
-import android.webkit.WebSettings
-import android.webkit.WebView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,21 +22,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.stylo.batterymonitor.BuildConfig
 import com.stylo.batterymonitor.data.BatterySnapshot
 import com.stylo.batterymonitor.ui.theme.BatteryGreen
 import com.stylo.batterymonitor.ui.theme.CardSurface
-import com.stylo.batterymonitor.ui.theme.ThermalOrange
 import com.stylo.batterymonitor.ui.theme.healthLabel
 import com.stylo.batterymonitor.ui.theme.statusLabel
 import java.util.Locale
@@ -47,7 +46,13 @@ import java.util.Locale
 fun BatteryDashboard(viewModel: BatteryViewModel) {
     val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Header(snapshot)
             ThreeDBatteryCard(snapshot)
             SecondaryMetrics(snapshot)
@@ -59,19 +64,34 @@ fun BatteryDashboard(viewModel: BatteryViewModel) {
 
 @Composable
 private fun ThreeDBatteryCard(snapshot: BatterySnapshot) {
-    Card(Modifier.fillMaxWidth().height(300.dp), RoundedCornerShape(28.dp), CardDefaults.cardColors(containerColor = CardSurface)) {
-        AndroidView(factory = { context ->
-            WebView(context).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.cacheMode = WebSettings.LOAD_DEFAULT
-                setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                loadUrl("file:///android_asset/abateri_3d.html")
-            }
-        }, update = { webView ->
-            val temp = snapshot.temperatureC ?: 0.0
-            webView.evaluateJavascript("window.setBatteryData && window.setBatteryData(${snapshot.levelPercent.coerceIn(0,100)},$temp);", null)
-        }, modifier = Modifier.fillMaxSize())
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var view: Abateri3DView? = null
+
+    Card(
+        modifier = Modifier.fillMaxWidth().height(300.dp),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = CardSurface),
+    ) {
+        AndroidView(
+            factory = { context ->
+                Abateri3DView(context).also {
+                    view = it
+                    it.attachToLifecycle(lifecycleOwner)
+                }
+            },
+            update = { webView ->
+                view = webView
+                webView.setBatteryData(
+                    snapshot.levelPercent.coerceIn(0, 100),
+                    snapshot.temperatureC ?: 0.0,
+                )
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        onDispose { view = null }
     }
 }
 
@@ -108,7 +128,13 @@ private fun SecondaryMetrics(snapshot: BatterySnapshot) {
         Metric("POWER", snapshot.powerMw?.let { formatPower(it) } ?: "--", "mW"),
         Metric("HEALTH", healthLabel(snapshot.health), ""),
     )
-    LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxWidth().height(220.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), userScrollEnabled = false) { items(metrics) { MetricCard(it) } }
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxWidth().height(220.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        userScrollEnabled = false,
+    ) { items(metrics) { MetricCard(it) } }
 }
 
 @Composable
