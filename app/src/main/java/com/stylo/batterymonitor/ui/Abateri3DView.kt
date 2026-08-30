@@ -68,12 +68,12 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
 
     override fun onPause(owner: LifecycleOwner) {
         tiltMonitor.stop()
-        super.onPause(owner)
+        super<DefaultLifecycleObserver>.onPause(owner)
     }
 
     override fun onResume(owner: LifecycleOwner) {
         if (pageReady) startTilt()
-        super.onResume(owner)
+        super<DefaultLifecycleObserver>.onResume(owner)
     }
 
     override fun onDestroy(owner: LifecycleOwner) {
@@ -82,6 +82,6 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
         stopLoading()
         loadUrl("about:blank")
         destroy()
-        super.onDestroy(owner)
+        super<DefaultLifecycleObserver>.onDestroy(owner)
     }
 }
