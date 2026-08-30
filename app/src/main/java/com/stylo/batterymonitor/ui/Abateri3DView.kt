@@ -3,7 +3,6 @@ package com.stylo.batterymonitor.ui
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
-import android.webkit.JavascriptInterface
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -26,7 +25,6 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
         settings.cacheMode = WebSettings.LOAD_DEFAULT
         settings.allowFileAccess = true
         settings.allowContentAccess = false
-        addJavascriptInterface(NativeTelemetryBridge(), "NativeAbateryBridge")
         webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 pageReady = true
@@ -43,6 +41,11 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
         voltageMv: Int?,
         currentMa: Double?,
         powerMw: Double?,
+        currentAverageMa: Double?,
+        chargeCounterMah: Double?,
+        energyWh: Double?,
+        cycleCount: Int?,
+        chargeTimeRemainingMin: Long?,
         healthPercent: Int?,
         charging: Boolean,
         full: Boolean,
@@ -54,6 +57,11 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
             put("voltageMv", voltageMv ?: JSONObject.NULL)
             put("currentMa", currentMa ?: JSONObject.NULL)
             put("powerMw", powerMw ?: JSONObject.NULL)
+            put("currentAverageMa", currentAverageMa ?: JSONObject.NULL)
+            put("chargeCounterMah", chargeCounterMah ?: JSONObject.NULL)
+            put("energyWh", energyWh ?: JSONObject.NULL)
+            put("cycleCount", cycleCount ?: JSONObject.NULL)
+            put("chargeTimeRemainingMin", chargeTimeRemainingMin ?: JSONObject.NULL)
             put("healthPercent", healthPercent ?: JSONObject.NULL)
             put("isCharging", charging)
             put("isFull", full)
@@ -67,33 +75,9 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
         val payload = JSONObject.quote(pendingTelemetry.toString())
         post {
             evaluateJavascript(
-                "if(window.AbateryBridge && typeof window.AbateryBridge.updateBattery==='function'){window.AbateryBridge.updateBattery($payload)}else if(window.NativeAbateryBridge && typeof window.NativeAbateryBridge.updateBattery==='function'){window.NativeAbateryBridge.updateBattery($payload)}",
-                null
+                "if(window.AbateryBridge && typeof window.AbateryBridge.updateBattery==='function'){window.AbateryBridge.updateBattery($payload)}",
+                null,
             )
-        }
-    }
-
-    /** Fallback used only when Claude's module bridge did not initialise. */
-    private inner class NativeTelemetryBridge {
-        @JavascriptInterface
-        fun updateBattery(json: String) {
-            val jsPayload = JSONObject.quote(json)
-            post {
-                evaluateJavascript(
-                    "(function(s){try{var d=JSON.parse(s);" +
-                        "var set=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v};" +
-                        "if(d.levelPercent!=null){set('pct-big',d.levelPercent+'%');var f=document.getElementById('charge-fill');if(f)f.style.width=d.levelPercent+'%'};" +
-                        "if(d.voltageMv!=null){set('h-v',(d.voltageMv/1000).toFixed(2)+'V');set('m-v',(d.voltageMv/1000).toFixed(2)+'V')};" +
-                        "if(d.currentMa!=null)set('m-a',(Math.abs(d.currentMa)/1000).toFixed(2)+'A');" +
-                        "if(d.powerMw!=null){set('h-w',(d.powerMw/1000).toFixed(1)+'W');set('c-power',(d.powerMw/1000).toFixed(1)+'W')};" +
-                        "if(d.temperatureC!=null){set('h-t',Math.round(d.temperatureC)+'°C');set('m-t',Math.round(d.temperatureC)+'°C')};" +
-                        "if(d.healthPercent!=null)set('c-health',d.healthPercent+'%');" +
-                        "if(d.estimatedMinutes!=null)set('eta-label','~'+d.estimatedMinutes+' min para 100%');" +
-                        "var st=document.getElementById('charge-state');if(st){st.textContent=d.isCharging?'⚡ CARGANDO':'○ DESCONECTADO';st.className='status-state '+(d.isCharging?'charging':'idle')}" +
-                        "}catch(e){}})($jsPayload)",
-                    null
-                )
-            }
         }
     }
 
@@ -103,7 +87,7 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
             post {
                 evaluateJavascript(
                     "if(typeof window.setDeviceTilt==='function'){window.setDeviceTilt(${pitch},${roll},${yaw})}",
-                    null
+                    null,
                 )
             }
         }
@@ -125,7 +109,6 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
         lifecycleStarted = false
         stopTilt()
         pageReady = false
-        removeJavascriptInterface("NativeAbateryBridge")
         loadUrl("about:blank")
         destroy()
     }
