@@ -21,6 +21,9 @@ interface BatteryDao {
     @Query("SELECT * FROM battery_snapshots ORDER BY timestampMs DESC LIMIT :limit")
     suspend fun latestSnapshots(limit: Int = 20): List<BatterySnapshotEntity>
 
+    @Query("DELETE FROM battery_snapshots WHERE id NOT IN (SELECT id FROM battery_snapshots ORDER BY timestampMs DESC LIMIT :keep)")
+    suspend fun trimSnapshots(keep: Int = MAX_SNAPSHOT_ROWS)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: ChargeSessionEntity): Long
 
@@ -35,4 +38,8 @@ interface BatteryDao {
 
     @Query("SELECT * FROM charge_sessions ORDER BY startMs DESC")
     fun allSessionsFlow(): Flow<List<ChargeSessionEntity>>
+
+    companion object {
+        const val MAX_SNAPSHOT_ROWS = 10_000
+    }
 }
