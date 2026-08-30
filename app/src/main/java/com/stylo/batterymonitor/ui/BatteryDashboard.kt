@@ -1,7 +1,6 @@
 package com.stylo.batterymonitor.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -45,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -125,8 +125,8 @@ private fun BatteryOrb(progress: Float, accent: Color, charging: Boolean) {
         Canvas(Modifier.fillMaxSize()) {
             val stroke = 15.dp.toPx()
             val diameter = size.minDimension - stroke
-            drawArc(MaterialTheme.colorScheme.surface.copy(alpha = .55f), -90f, 360f, false, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = StrokeCap.Round))
-            drawArc(accent, -90f, 360f * progress, false, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = StrokeCap.Round))
+            drawArc(MaterialTheme.colorScheme.surface.copy(alpha = .55f), -90f, 360f, false, style = Stroke(stroke, cap = StrokeCap.Round))
+            drawArc(accent, -90f, 360f * progress, false, style = Stroke(stroke, cap = StrokeCap.Round))
             if (charging) {
                 val angle = (-90 + 360 * progress) * PI / 180
                 val r = diameter / 2
