@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Color
 import android.webkit.WebSettings
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 
@@ -26,6 +27,13 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
         isVerticalScrollBarEnabled = false
         isHorizontalScrollBarEnabled = false
         overScrollMode = OVER_SCROLL_NEVER
+        webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                pageReady = true
+                applyBatteryData()
+                startTilt()
+            }
+        }
         loadUrl("file:///android_asset/abateri_3d.html")
     }
 
@@ -44,13 +52,6 @@ class Abateri3DView(context: Context) : WebView(context), DefaultLifecycleObserv
             "window.setBatteryData && window.setBatteryData($level,$temperature);",
             null,
         )
-    }
-
-    override fun onPageFinished(view: WebView?, url: String?) {
-        super.onPageFinished(view, url)
-        pageReady = true
-        applyBatteryData()
-        startTilt()
     }
 
     private fun startTilt() {
