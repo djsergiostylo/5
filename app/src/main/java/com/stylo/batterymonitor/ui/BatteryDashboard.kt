@@ -23,11 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -65,7 +61,6 @@ fun BatteryDashboard(viewModel: BatteryViewModel) {
     val health by viewModel.health.collectAsStateWithLifecycle()
     val session by viewModel.activeSession.collectAsStateWithLifecycle()
     var screen by remember { mutableStateOf(0) }
-
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         AnimatedContent(screen, transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) }, label = "screen") { current ->
             when (current) {
@@ -85,7 +80,6 @@ private fun DashboardScreen(snapshot: BatterySnapshot, prediction: ChargingTimeP
     val temp = snapshot.temperatureC?.let { "%.1f °C".format(it) } ?: "—"
     val voltage = snapshot.voltageMv?.let { "$it mV" } ?: "—"
     val status = when { snapshot.isFull -> "Completa"; snapshot.isCharging -> "Cargando"; else -> "En uso" }
-
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Spacer(Modifier.height(14.dp))
@@ -95,7 +89,7 @@ private fun DashboardScreen(snapshot: BatterySnapshot, prediction: ChargingTimeP
                     Text(if (snapshot.isCharging) "Monitorización activa" else "Monitorización en espera", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = { navigate(2) }) { Icon(Icons.Default.Info, "Información") }
-                IconButton(onClick = { navigate(1) }) { Icon(Icons.Default.History, "Histórico") }
+                IconButton(onClick = { navigate(1) }) { Icon(Icons.Default.Info, "Histórico") }
             }
         }
         item {
@@ -109,40 +103,40 @@ private fun DashboardScreen(snapshot: BatterySnapshot, prediction: ChargingTimeP
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricCard("Temperatura", temp, Icons.Default.Thermostat, Modifier.weight(1f))
-                MetricCard("Voltaje", voltage, Icons.Default.Bolt, Modifier.weight(1f))
+                MetricCard("Temperatura", temp, Icons.Default.Info, Modifier.weight(1f))
+                MetricCard("Voltaje", voltage, Icons.Default.Info, Modifier.weight(1f))
             }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MetricCard("Salud", health?.roundedPercent?.let { "$it%" } ?: "Pendiente", Icons.Default.Info, Modifier.weight(1f))
-                MetricCard("Sesiones", health?.sessionsUsed?.toString() ?: "0", Icons.Default.History, Modifier.weight(1f))
+                MetricCard("Sesiones", health?.sessionsUsed?.toString() ?: "0", Icons.Default.Info, Modifier.weight(1f))
             }
         }
         item {
             val text = prediction?.let { if (it.minutesRemaining <= 0) "Carga completa" else "≈ ${it.minutesRemaining} min hasta 100%" } ?: "Necesita más datos de carga"
-            InsightCard("Predicción", text, Icons.Default.Bolt)
+            InsightCard("Predicción", text, Icons.Default.Info)
         }
-        item { InsightCard("Sesión", if (session != null) "Carga activa · mediciones guardadas automáticamente" else "Sin sesión activa", Icons.Default.History) }
+        item { InsightCard("Sesión", if (session != null) "Carga activa · mediciones guardadas automáticamente" else "Sin sesión activa", Icons.Default.Info) }
         item { Text("Datos locales · ABATERI 1.0", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(bottom = 24.dp)) }
     }
 }
 
 @Composable
 private fun BatteryOrb(progress: Float, accent: Color, charging: Boolean) {
+    val track = MaterialTheme.colorScheme.surface.copy(alpha = .55f)
     Box(Modifier.size(190.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val stroke = 15.dp.toPx()
             val diameter = size.minDimension - stroke
-            drawArc(MaterialTheme.colorScheme.surface.copy(alpha = .55f), -90f, 360f, false, style = Stroke(stroke, cap = StrokeCap.Round))
+            drawArc(track, -90f, 360f, false, style = Stroke(stroke, cap = StrokeCap.Round))
             drawArc(accent, -90f, 360f * progress, false, style = Stroke(stroke, cap = StrokeCap.Round))
-            if (charging) {
-                val angle = (-90 + 360 * progress) * PI / 180
-                val r = diameter / 2
-                drawCircle(accent, 6.dp.toPx(), androidx.compose.ui.geometry.Offset(size.width / 2 + cos(angle).toFloat() * r, size.height / 2 + sin(angle).toFloat() * r))
-            }
+            val r = diameter / 2
+            val angle = (-90 + 360 * progress) * PI / 180
+            if (charging) drawCircle(accent, 6.dp.toPx(), androidx.compose.ui.geometry.Offset(size.width / 2 + cos(angle).toFloat() * r, size.height / 2 + sin(angle).toFloat() * r))
+            drawCircle(accent.copy(alpha = .10f), diameter * .36f, androidx.compose.ui.geometry.Offset(size.width * .42f, size.height * .40f))
         }
-        Icon(Icons.Default.BatteryChargingFull, null, tint = accent, modifier = Modifier.size(52.dp))
+        Text("A", fontSize = 42.sp, fontWeight = FontWeight.Black, color = accent)
     }
 }
 
@@ -204,7 +198,7 @@ private fun AboutScreen(back: () -> Unit) {
 @Composable
 private fun TopBar(title: String, back: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = back) { Icon(Icons.Default.History, "Volver") }
+        IconButton(onClick = back) { Icon(Icons.Default.Info, "Volver") }
         Text(title, fontSize = 24.sp, fontWeight = FontWeight.Black)
     }
 }
