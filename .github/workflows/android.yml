@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "feat/abateri-3d-complete"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -49,7 +49,7 @@ jobs:
           echo "VERSION_NAME=${VERSION_NAME}" >> "$GITHUB_ENV"
           sed -i "s/versionCode = [0-9]*/versionCode = ${GITHUB_RUN_NUMBER}/" app/build.gradle.kts
           sed -i "s/versionName = \"[0-9.]*\"/versionName = \"${VERSION_NAME}\"/" app/build.gradle.kts
-          echo "STYLO Battery Monitor ${VERSION_NAME}"
+          echo "ABATERY ${VERSION_NAME}"
 
       - name: Run unit tests
         run: gradle --no-daemon testDebugUnitTest
@@ -63,33 +63,35 @@ jobs:
       - name: Rename APK for download
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk \
-            "app/build/outputs/apk/debug/STYLO-Battery-Monitor-v${VERSION_NAME}-debug.apk"
+            "app/build/outputs/apk/debug/ABATERY-v${VERSION_NAME}-debug.apk"
 
-      - name: Upload debug APK
+      - name: Upload APK as standalone artifact
         id: apk
         uses: actions/upload-artifact@v4
         with:
-          name: STYLO-Battery-Monitor-v${{ env.VERSION_NAME }}-debug
-          path: app/build/outputs/apk/debug/STYLO-Battery-Monitor-v${{ env.VERSION_NAME }}-debug.apk
+          name: ABATERY-v${{ env.VERSION_NAME }}-debug.apk
+          path: app/build/outputs/apk/debug/ABATERY-v${{ env.VERSION_NAME }}-debug.apk
           if-no-files-found: error
           retention-days: 30
 
       - name: Add APK download link to summary
         run: |
-          echo "## 📱 ABATERI v${VERSION_NAME}" >> "$GITHUB_STEP_SUMMARY"
+          echo "## 📱 ABATERY v${VERSION_NAME}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### APK generada correctamente" >> "$GITHUB_STEP_SUMMARY"
           echo "**Versión:** ${VERSION_NAME}" >> "$GITHUB_STEP_SUMMARY"
           echo "**Build:** #${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
-          echo "[⬇️ Descargar APK](${{ steps.apk.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Archivo:** ABATERY-v${VERSION_NAME}-debug.apk" >> "$GITHUB_STEP_SUMMARY"
+          echo "[⬇️ Descargar APK (artefacto)](${{ steps.apk.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Commit: \\`${GITHUB_SHA::12}\\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish GitHub Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/abateri-3d-complete')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION_NAME }}
-          name: ABATERI v${{ env.VERSION_NAME }}
+          name: ABATERY v${{ env.VERSION_NAME }}
           generate_release_notes: true
-          files: app/build/outputs/apk/debug/STYLO-Battery-Monitor-v${{ env.VERSION_NAME }}-debug.apk
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
+          files: app/build/outputs/apk/debug/ABATERY-v${{ env.VERSION_NAME }}-debug.apk
